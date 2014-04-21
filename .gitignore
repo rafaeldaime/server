@@ -1,0 +1,4 @@
+# Files to git ignore
+
+# MySql Workbench temporary file
+*.bak
