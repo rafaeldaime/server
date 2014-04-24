@@ -2,3 +2,6 @@
 
 # MySql Workbench temporary file
 *.bak
+
+# Vim temporary file
+*.swp
