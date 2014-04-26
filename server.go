@@ -70,6 +70,11 @@ func init() {
 		return "You are authenticated by Authorization Header!"
 	})
 
+	// Just a ping route
+	r.Get("/ping", func() string {
+		return "pong!"
+	})
+
 	// Add the routesr action
 	m.Action(r.Handle)
 }
