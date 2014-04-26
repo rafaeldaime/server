@@ -5,3 +5,6 @@
 
 # Vim temporary file
 *.swp
+
+# Certificate files
+*.pem
