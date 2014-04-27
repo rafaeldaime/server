@@ -6,8 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -15,14 +13,6 @@ import (
 	"code.google.com/p/goauth2/oauth"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/sessions"
-)
-
-// Here start our simplest OAuth2
-
-const (
-	codeRedirect = 302
-	keyToken     = "oauth2_token"
-	keyNextPage  = "next"
 )
 
 var config = &oauth.Config{
@@ -44,7 +34,7 @@ func AuthMiddleware(s sessions.Session, c martini.Context, w http.ResponseWriter
 	if tk != nil {
 		// check if the access token is expired
 		if tk.IsExpired() && tk.Refresh() == "" {
-			s.Delete(keyToken)
+			s.Delete("token")
 			tk = nil
 		}
 	}
@@ -82,27 +72,27 @@ type Tokens interface {
 	ExtraData() map[string]string
 }
 
-type token struct {
+type Token struct {
 	oauth.Token
 }
 
-func (t *token) ExtraData() map[string]string {
+func (t *Token) ExtraData() map[string]string {
 	return t.Extra
 }
 
-// Returns the access token.
-func (t *token) Access() string {
+// Returns the access Token.
+func (t *Token) Access() string {
 	return t.AccessToken
 }
 
-// Returns the refresh token.
-func (t *token) Refresh() string {
+// Returns the refresh Token.
+func (t *Token) Refresh() string {
 	return t.RefreshToken
 }
 
-// Returns whether the access token is
+// Returns whether the access Token is
 // expired or not.
-func (t *token) IsExpired() bool {
+func (t *Token) IsExpired() bool {
 	if t == nil {
 		return true
 	}
@@ -110,90 +100,98 @@ func (t *token) IsExpired() bool {
 }
 
 // Returns the expiry time of the user's
-// access token.
-func (t *token) ExpiryTime() time.Time {
+// access Token.
+func (t *Token) ExpiryTime() time.Time {
 	return t.Expiry
 }
 
-// Formats tokens into string.
-func (t *token) String() string {
-	return fmt.Sprintf("tokens: %v", t)
+// Formats Tokens into string.
+func (t *Token) String() string {
+	return fmt.Sprintf("Tokens: %v", t)
 }
 
 // Handler that redirects user to the login page
 // if user is not logged in.
 func LoginRequiredHandler(s sessions.Session, w http.ResponseWriter, r *http.Request) {
-	token := unmarshallToken(s)
-	if token == nil || token.IsExpired() {
+	Token := unmarshallToken(s)
+	if Token == nil || Token.IsExpired() {
 		next := url.QueryEscape(r.URL.RequestURI())
-		http.Redirect(w, r, "/login?next="+next, codeRedirect)
+		http.Redirect(w, r, "/login?next="+next, 302)
 	}
 }
 
 func LoginHandler(s sessions.Session, w http.ResponseWriter, r *http.Request) {
-	next := extractPath(r.URL.Query().Get(keyNextPage))
-	if s.Get(keyToken) == nil {
+	next := extractPath(r.URL.Query().Get("next"))
+	if s.Get("Token") == nil {
 		// User is not logged in.
-		http.Redirect(w, r, transport.Config.AuthCodeURL(next), codeRedirect)
+		http.Redirect(w, r, transport.Config.AuthCodeURL(next), 302)
 		return
 	}
 	// No need to login, redirect to the next page.
-	http.Redirect(w, r, next, codeRedirect)
+	http.Redirect(w, r, next, 302)
 }
 
 func LogoutHandler(s sessions.Session, w http.ResponseWriter, r *http.Request) {
-	next := extractPath(r.URL.Query().Get(keyNextPage))
-	s.Delete(keyToken)
-	http.Redirect(w, r, next, codeRedirect)
+	next := extractPath(r.URL.Query().Get("next"))
+	s.Delete("Token")
+	http.Redirect(w, r, next, 302)
 }
 
 func AuthCallbackHandler(enc Encoder, s sessions.Session, w http.ResponseWriter, r *http.Request) (int, string) {
 	//next := extractPath(r.URL.Query().Get("state"))
 	code := r.URL.Query().Get("code")
-	// token = oauth.Token, err = oauth.OAuthError
-	oauthToken, err := transport.Exchange(code)
+	// Token = oauth.Token, err = oauth.OAuthError
+	// oauthToken, err := transport.Exchange(code)
+	_, err := transport.Exchange(code) //
 	if err != nil {
-		return http.StatusUnauthorized, string(Must(enc.Encode(
-			NewError(ErrorCodeDefault, fmt.Sprintf("Desculpe, mas nao conseguimos autentica-lo. %s", err)))))
+		return http.StatusUnauthorized, Must(enc.Encode(
+			NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, mas nao conseguimos autentica-lo. %s", err))))
 	}
 
 	// Here we have our http client configured to make calls
 	client := transport.Client()
 	res, err := client.Get("https://graph.facebook.com/me")
 	if err != nil {
-		return http.StatusBadRequest, string(Must(enc.Encode(
-			NewError(ErrorCodeDefault, fmt.Sprintf("Desculpe, mas nao conseguimos acessar seus dados. %s", err)))))
+		return http.StatusBadRequest, Must(enc.Encode(
+			NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, mas nao conseguimos acessar seus dados. %s", err))))
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	data := new(interface{}) // Its a pointer to an interface
+	// The Decoder can handle a stream, unlike Unmarshal
+	decoder := json.NewDecoder(res.Body)
+	err = decoder.Decode(data) // Passing a pointer
 	if err != nil {
-		return http.StatusBadRequest, string(Must(enc.Encode(
-			NewError(ErrorCodeDefault, fmt.Sprintf("Desculpe, ocorreu um erro ao ler a resposta do outro servidor. %s", err)))))
+		return http.StatusBadRequest, Must(enc.Encode(
+			NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, a mensagem do outro servidor nao esta no formato json. %s", err))))
 	}
 
-	var data interface{}
-	err = json.Unmarshal(body, &data)
+	profile, err := extractProfile(transport.Token, data)
 	if err != nil {
-		return http.StatusBadRequest, string(Must(enc.Encode(
-			NewError(ErrorCodeDefault, fmt.Sprintf("Desculpe, a mensagem do outro servidor nao esta no formato json. %s", err)))))
+		return http.StatusBadRequest, Must(enc.Encode(
+			NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, mas nao conseguimos extrair o seu perfil pelos dados fornecidos. %s", err))))
 	}
 
-	// Store the credentials in the session.
-	value, _ := json.Marshal(oauthToken)
-	s.Set(keyToken, value)
-	//http.Redirect(w, r, next, codeRedirect)
-	log.Println(fmt.Sprintf("transport.Token: %#v", transport.Token))
-	return 200, Must(enc.Encode(data))
+	// OK WE HAVE THE PROFILE, BUT WE DON'T HAVE USER'S PICTURE
+	// LETS TAKE IT
+
+	//http.Redirect(w, r, next, 302)
+	return 200, Must(enc.Encode(profile))
 }
 
-func unmarshallToken(s sessions.Session) (t *token) {
-	if s.Get(keyToken) == nil {
+func unmarshallToken(s sessions.Session) (t *Token) {
+	if s.Get("Token") == nil {
 		return
 	}
-	data := s.Get(keyToken).([]byte)
+	data := s.Get("Token").([]byte)
 	var tk oauth.Token
 	json.Unmarshal(data, &tk)
-	return &token{tk}
+	return &Token{tk}
 }
 
 func extractPath(next string) string {
@@ -202,4 +200,41 @@ func extractPath(next string) string {
 		return "/"
 	}
 	return n.Path
+}
+
+func extractProfile(token *oauth.Token, data *interface{}) (*Profile, error) {
+	// Here we are taking the value in where this variable is pointing to,
+	// and we cast it to an map[string] interface
+	p := (*data).(map[string]interface{})
+
+	profile := new(Profile)
+
+	// Just Facebook for now
+	profile.ProfileId = p["id"].(string)
+	profile.Source = "facebook"
+	profile.UserId = "" // We don't know yet
+	profile.UserName = p["username"].(string)
+	profile.Email = p["email"].(string)
+	profile.FullName = p["name"].(string)
+	profile.Gender = p["gender"].(string)
+	profile.ProfileUrl = p["link"].(string)
+	profile.ImageUrl = "" // I don't know how to take it yet
+	profile.Language = p["locale"].(string)
+	profile.Verified = p["verified"].(bool)
+	profile.FirstName = p["first_name"].(string)
+	profile.LastName = p["last_name"].(string)
+
+	timeLayout := "2006-01-02T15:04:05+0000"
+	updateTime, err := time.Parse(timeLayout, p["updated_time"].(string))
+	if err != nil {
+		return profile, err
+	}
+	profile.LastUpdateTime = updateTime
+
+	profile.AccessToken = token.AccessToken
+	profile.RefreshToken = token.RefreshToken
+	profile.Expiry = token.Expiry
+	profile.Scope = config.Scope // A package config variable
+
+	return profile, nil
 }

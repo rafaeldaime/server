@@ -20,10 +20,14 @@ func init() {
 	// Setup middleware
 	m.Use(martini.Recovery())
 	m.Use(martini.Logger())
+	// !!! WE WILL REMOVE THE SESSIONS !!!
 	m.Use(sessions.Sessions("session", sessions.NewCookieStore([]byte("CookieIrado"))))
 
+	// Add the AuthMiddleware
+	m.Use(OrmMiddleware)
+
 	// Add de EncoderMiddleware for Json encode
-	m.Use(MapEncoder)
+	m.Use(EncoderMiddleware)
 
 	// Add the AuthMiddleware
 	m.Use(AuthMiddleware)

@@ -24,11 +24,11 @@ type Encoder interface {
 // slash).
 var rxExt = regexp.MustCompile(`(\.(?:xml|text|json|html))\/?$`)
 
-// MapEncoder intercepts the request's URL, detects the requested format,
+// EncoderMiddleware intercepts the request's URL, detects the requested format,
 // and injects the correct encoder dependency for this request. It rewrites
 // the URL to remove the format extension, so that routes can be defined
 // without it.
-func MapEncoder(c martini.Context, w http.ResponseWriter, r *http.Request) {
+func EncoderMiddleware(c martini.Context, w http.ResponseWriter, r *http.Request) {
 	// Here we will consider .json de default,
 	// except when the main path (/) is accessed
 	ft := ".json"
