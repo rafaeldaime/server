@@ -8,15 +8,8 @@ import (
 )
 
 // The only one acess token just for testing https
-const AuthToken = "token"
+const AuthToken = "token2"
 const AuthPass = ""
-
-var FacebookOAuth = Facebook(&Options{
-	ClientId:     "560046220732101",
-	ClientSecret: "18d10b619523227e65ecf5b38fc18f90",
-	RedirectURL:  "http://localhost:8000/oauth2callback",
-	Scopes:       []string{"basic_info", "email"},
-})
 
 // The only one martini instance
 var m *martini.Martini
@@ -28,51 +21,62 @@ func init() {
 	m.Use(martini.Recovery())
 	m.Use(martini.Logger())
 	m.Use(sessions.Sessions("session", sessions.NewCookieStore([]byte("CookieIrado"))))
-	m.Use(FacebookOAuth)
+
+	// Add de EncoderMiddleware for Json encode
+	m.Use(MapEncoder)
+
+	// Add the AuthMiddleware
+	m.Use(AuthMiddleware)
 
 	// Setup routes
 	r := martini.NewRouter()
-	r.Get("/", func() string {
-		return "Hello world"
-	})
 
-	r.Get("/test", func() string {
+	// Add the Auth Handlers
+	r.Get("/login", LoginHandler)
+	r.Get("/logout", LogoutHandler)
+	r.Get("/authcallback", AuthCallbackHandler)
+
+	r.Get("/", func() string {
 		return ` 
 		<p>Home</p>
-		 
 		<ul>
-		<li><a href="/login?next=/admin">admin</a></li>
+		<li><a href="/admin.html">admin</a></li>
+		<li><a href="/login">login</a></li>
+		<li><a href="/token">token</a></li>
 		<li><a href="/logout">logout</a></li>
-		</ul>
-		`
+		</ul>`
 	})
 
-	r.Get("/admin", LoginRequired, func() string {
+	r.Get("/admin.html", LoginRequiredHandler, func() string {
 		return `
 		<p>Admin</p>
-		 
 		<ul>
+		<li><a href="/">Home</a></li>
 		<li><a href="/logout">logout</a></li>
 		</ul>
 		`
 	})
 
 	// tokens are injected to the handlers
-	r.Get("/token", func(tokens Tokens) (int, string) {
+	r.Get("/token", func(enc Encoder, tokens Tokens) (int, string) {
 		if tokens != nil {
-			return 200, tokens.Access()
+			return http.StatusOK, Must(enc.Encode(tokens)) //.Access()
 		}
-		return 403, "not authenticated"
+		return 403, Must(enc.Encode("Nao autenticado"))
 	})
 
 	// testing https secure
 	r.Get("/secure", BasicAuth(AuthToken, AuthPass), func() string {
-		return "You are authenticated by Authorization Header!"
+		return "Voce foi autenticado pelo Authorization Header!"
 	})
 
 	// Just a ping route
 	r.Get("/ping", func() string {
 		return "pong!"
+	})
+
+	r.NotFound(func(r *http.Request) (int, string) {
+		return http.StatusNotFound, "Pagina nao encontrada " + r.URL.Path
 	})
 
 	// Add the routesr action
@@ -82,11 +86,11 @@ func init() {
 func main() {
 	log.Println("Starting server...")
 	// Starting de HTTPS server in a new goroutine
-	go func() {
-		if err := http.ListenAndServeTLS(":8001", "cert.pem", "key.pem", m); err != nil {
-			log.Fatal(err)
-		}
-	}()
+	// go func() {
+	// 	if err := http.ListenAndServeTLS(":8001", "cert.pem", "key.pem", m); err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// }()
 
 	// Starting de HTTPS server
 	if err := http.ListenAndServe(":8000", m); err != nil {
