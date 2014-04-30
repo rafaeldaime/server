@@ -8,3 +8,9 @@
 
 # Certificate files
 *.pem
+
+# Ignore public directory
+/public/pic/*
+
+# But not ignore the default pic
+!/public/pic/default.png

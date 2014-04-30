@@ -20,6 +20,8 @@ func init() {
 	// Setup middleware
 	m.Use(martini.Recovery())
 	m.Use(martini.Logger())
+	// Serving public directory
+	m.Use(martini.Static("public"))
 	// !!! WE WILL REMOVE THE SESSIONS !!!
 	m.Use(sessions.Sessions("session", sessions.NewCookieStore([]byte("CookieIrado"))))
 
@@ -62,12 +64,12 @@ func init() {
 	})
 
 	// tokens are injected to the handlers
-	r.Get("/token", func(enc Encoder, tokens Tokens) (int, string) {
-		if tokens != nil {
-			return http.StatusOK, Must(enc.Encode(tokens)) //.Access()
-		}
-		return 403, Must(enc.Encode("Nao autenticado"))
-	})
+	// r.Get("/token", func(enc Encoder, tokens Tokens) (int, string) {
+	// 	if tokens != nil {
+	// 		return http.StatusOK, Must(enc.Encode(tokens)) //.Access()
+	// 	}
+	// 	return 403, Must(enc.Encode("Nao autenticado"))
+	// })
 
 	// testing https secure
 	r.Get("/secure", BasicAuth(AuthToken, AuthPass), func() string {
@@ -89,6 +91,7 @@ func init() {
 
 func main() {
 	log.Println("Starting server...")
+
 	// Starting de HTTPS server in a new goroutine
 	// go func() {
 	// 	if err := http.ListenAndServeTLS(":8001", "cert.pem", "key.pem", m); err != nil {
@@ -100,4 +103,5 @@ func main() {
 	if err := http.ListenAndServe(":8000", m); err != nil {
 		log.Fatal(err)
 	}
+
 }

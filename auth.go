@@ -6,11 +6,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"code.google.com/p/goauth2/oauth"
+	"github.com/dchest/uniuri" // give us random URIs
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/sessions"
 )
@@ -30,16 +34,16 @@ var transport = &oauth.Transport{
 }
 
 func AuthMiddleware(s sessions.Session, c martini.Context, w http.ResponseWriter, r *http.Request) {
-	tk := unmarshallToken(s)
-	if tk != nil {
-		// check if the access token is expired
-		if tk.IsExpired() && tk.Refresh() == "" {
-			s.Delete("token")
-			tk = nil
-		}
-	}
+	// tk := unmarshallToken(s)
+	// if tk != nil {
+	// 	// check if the access token is expired
+	// 	if tk.IsExpired() && tk.Refresh() == "" {
+	// 		s.Delete("token")
+	// 		tk = nil
+	// 	}
+	// }
 	// Inject tokens.
-	c.MapTo(tk, (*Tokens)(nil))
+	// ... c.MapTo(tk, (*Tokens)(nil))
 }
 
 // Here is our BasicAuth
@@ -62,62 +66,14 @@ func SecureCompare(given string, actual string) bool {
 	return subtle.ConstantTimeCompare(givenSha[:], actualSha[:]) == 1
 }
 
-// Represents a container that contains
-// user's OAuth 2.0 access and refresh tokens.
-type Tokens interface {
-	Access() string
-	Refresh() string
-	IsExpired() bool
-	ExpiryTime() time.Time
-	ExtraData() map[string]string
-}
-
-type Token struct {
-	oauth.Token
-}
-
-func (t *Token) ExtraData() map[string]string {
-	return t.Extra
-}
-
-// Returns the access Token.
-func (t *Token) Access() string {
-	return t.AccessToken
-}
-
-// Returns the refresh Token.
-func (t *Token) Refresh() string {
-	return t.RefreshToken
-}
-
-// Returns whether the access Token is
-// expired or not.
-func (t *Token) IsExpired() bool {
-	if t == nil {
-		return true
-	}
-	return t.Expired()
-}
-
-// Returns the expiry time of the user's
-// access Token.
-func (t *Token) ExpiryTime() time.Time {
-	return t.Expiry
-}
-
-// Formats Tokens into string.
-func (t *Token) String() string {
-	return fmt.Sprintf("Tokens: %v", t)
-}
-
 // Handler that redirects user to the login page
 // if user is not logged in.
 func LoginRequiredHandler(s sessions.Session, w http.ResponseWriter, r *http.Request) {
-	Token := unmarshallToken(s)
-	if Token == nil || Token.IsExpired() {
-		next := url.QueryEscape(r.URL.RequestURI())
-		http.Redirect(w, r, "/login?next="+next, 302)
-	}
+	// Token := nil //unmarshallToken(s)
+	// if Token == nil || Token.IsExpired() {
+	// 	next := url.QueryEscape(r.URL.RequestURI())
+	// 	http.Redirect(w, r, "/login?next="+next, 302)
+	// }
 }
 
 func LoginHandler(s sessions.Session, w http.ResponseWriter, r *http.Request) {
@@ -137,7 +93,7 @@ func LogoutHandler(s sessions.Session, w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, next, 302)
 }
 
-func AuthCallbackHandler(enc Encoder, s sessions.Session, w http.ResponseWriter, r *http.Request) (int, string) {
+func AuthCallbackHandler(db DB, enc Encoder, s sessions.Session, w http.ResponseWriter, r *http.Request) (int, string) {
 	//next := extractPath(r.URL.Query().Get("state"))
 	code := r.URL.Query().Get("code")
 	// Token = oauth.Token, err = oauth.OAuthError
@@ -151,48 +107,41 @@ func AuthCallbackHandler(enc Encoder, s sessions.Session, w http.ResponseWriter,
 
 	// Here we have our http client configured to make calls
 	client := transport.Client()
-	res, err := client.Get("https://graph.facebook.com/me")
+
+	profile, err := getProfile(client)
 	if err != nil {
-		return http.StatusBadRequest, Must(enc.Encode(
+		return http.StatusUnauthorized, Must(enc.Encode(
 			NewError(ErrorCodeDefault, fmt.Sprintf(
-				"Desculpe, mas nao conseguimos acessar seus dados. %s", err))))
+				"Desculpe, mas nao conseguimos acessar seu perfil. %s", err))))
 	}
 
-	defer res.Body.Close()
-
-	data := new(interface{}) // Its a pointer to an interface
-	// The Decoder can handle a stream, unlike Unmarshal
-	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(data) // Passing a pointer
+	user, err := getOrCreateUser(db, profile)
 	if err != nil {
-		return http.StatusBadRequest, Must(enc.Encode(
+		return http.StatusUnauthorized, Must(enc.Encode(
 			NewError(ErrorCodeDefault, fmt.Sprintf(
-				"Desculpe, a mensagem do outro servidor nao esta no formato json. %s", err))))
+				"Desculpe, mas nao conseguimos processar seu perfil. %s", err))))
 	}
 
-	profile, err := extractProfile(transport.Token, data)
-	if err != nil {
-		return http.StatusBadRequest, Must(enc.Encode(
-			NewError(ErrorCodeDefault, fmt.Sprintf(
-				"Desculpe, mas nao conseguimos extrair o seu perfil pelos dados fornecidos. %s", err))))
-	}
+	// After answare the request, check if this user has an pic
+	defer checkOrGetPic(db, client, user)
 
-	// OK WE HAVE THE PROFILE, BUT WE DON'T HAVE USER'S PICTURE
-	// LETS TAKE IT
+	token, err := newToken(db, user)
 
-	//http.Redirect(w, r, next, 302)
-	return 200, Must(enc.Encode(profile))
+	// THIS TOKEN SHOULD BE SET BY JAVASCRIPT!
+	// USER IS AUTHENTICATED!
+
+	return 200, Must(enc.Encode(token))
 }
 
-func unmarshallToken(s sessions.Session) (t *Token) {
-	if s.Get("Token") == nil {
-		return
-	}
-	data := s.Get("Token").([]byte)
-	var tk oauth.Token
-	json.Unmarshal(data, &tk)
-	return &Token{tk}
-}
+// func unmarshallToken(s sessions.Session) (t *Token) {
+// 	if s.Get("Token") == nil {
+// 		return
+// 	}
+// 	data := s.Get("Token").([]byte)
+// 	var tk oauth.Token
+// 	json.Unmarshal(data, &tk)
+// 	return &Token{tk}
+// }
 
 func extractPath(next string) string {
 	n, err := url.Parse(next)
@@ -211,14 +160,14 @@ func extractProfile(token *oauth.Token, data *interface{}) (*Profile, error) {
 
 	// Just Facebook for now
 	profile.ProfileId = p["id"].(string)
+	// I can know that is facebook by my token? maybe...
 	profile.Source = "facebook"
-	profile.UserId = "" // We don't know yet
+	// UserId is not inserted know, but is required
 	profile.UserName = p["username"].(string)
 	profile.Email = p["email"].(string)
 	profile.FullName = p["name"].(string)
 	profile.Gender = p["gender"].(string)
 	profile.ProfileUrl = p["link"].(string)
-	profile.ImageUrl = "" // I don't know how to take it yet
 	profile.Language = p["locale"].(string)
 	profile.Verified = p["verified"].(bool)
 	profile.FirstName = p["first_name"].(string)
@@ -227,14 +176,227 @@ func extractProfile(token *oauth.Token, data *interface{}) (*Profile, error) {
 	timeLayout := "2006-01-02T15:04:05+0000"
 	updateTime, err := time.Parse(timeLayout, p["updated_time"].(string))
 	if err != nil {
-		return profile, err
+		return nil, err
 	}
-	profile.LastUpdateTime = updateTime
+	profile.SourceUpdate = updateTime
 
 	profile.AccessToken = token.AccessToken
 	profile.RefreshToken = token.RefreshToken
-	profile.Expiry = token.Expiry
 	profile.Scope = config.Scope // A package config variable
+	profile.TokenExpiry = token.Expiry
+	// Creation and LastUpdate will be auto-added by database
 
 	return profile, nil
+}
+
+// Take a http client with a transport pre-configured with the user credentials
+// and return de name of the pic saved in public/pics/
+func getPic(db DB, client *http.Client, user *User) (*Pic, error) {
+	// OK WE HAVE THE PROFILE, BUT WE DON'T HAVE USER'S PICTURE
+	// LETS TAKE IT
+	res, err := client.Get("https://graph.facebook.com/me/picture")
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+
+	img, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	picId := uniuri.NewLen(20)
+	p, err := db.Get(Pic{}, picId)
+	for err == nil && p != nil {
+		// Shit, we generated an existing picId!
+		// Lotto, where are you?
+		picId := uniuri.NewLen(20)
+		p, err = db.Get(Pic{}, picId)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	fo, err := os.Create("public/pic/" + picId + ".png")
+	if err != nil {
+		return nil, err
+	}
+
+	// close fo on exit and check for its returned error
+	defer func() {
+		if err := fo.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	fo.Write(img)
+
+	pic := new(Pic)
+	pic.PicId = picId
+	pic.UserId = user.UserId
+	pic.Creation = time.Now()
+	pic.Deleted = false // Lol...
+
+	err = db.Insert(pic)
+	if err != nil {
+		return nil, err
+	}
+
+	return pic, nil
+}
+
+func checkOrGetPic(db DB, client *http.Client, user *User) {
+	count, err := db.SelectInt("select count(*) from pic where userid=?", user.UserId)
+	if err != nil || count == 0 {
+		pic, err := getPic(db, client, user)
+		if err != nil {
+			log.Printf("Error getting users pic: %v", err)
+		}
+		log.Printf("New pic %s saved from user %s", pic.PicId, user.UserId)
+	}
+}
+
+func getProfile(client *http.Client) (*Profile, error) {
+	res, err := client.Get("https://graph.facebook.com/me")
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+
+	data := new(interface{}) // Its a pointer to an interface
+	// The Decoder can handle a stream, unlike Unmarshal
+	decoder := json.NewDecoder(res.Body)
+	err = decoder.Decode(data) // Passing a pointer
+	if err != nil {
+		return nil, err
+	}
+
+	return extractProfile(transport.Token, data)
+}
+
+func newUser(db DB, profile *Profile) (*User, error) {
+
+	userId := uniuri.NewLen(20)
+	userName := profile.UserName
+
+	var users []User
+	var increment = 0
+
+	query := "select * from user where userid=? or username=?"
+	_, err := db.Select(&users, query, userId, userName)
+
+	for err == nil && len(users) != 0 {
+
+		log.Printf("U[%v]: %#v", len(users), users)
+		//return nil, nil
+
+		u := users[0]
+		users = users[:0] // Clear my slice
+
+		// I will play in lottery if we see it happennig
+		// just one time in 10^32
+		if u.UserId == userId {
+			userId = uniuri.NewLen(20)
+		}
+
+		// If already exists an user with this userName
+		if u.UserName == userName {
+			increment += 1
+			userName = fmt.Sprintf("%s-%d", profile.UserName, increment)
+		}
+
+		// Check if still existing an user like this
+		_, err = db.Select(&users, query, userId, userName)
+	}
+
+	// Checks if main loop didn't finish for an error
+	if err != nil {
+		return nil, err
+	}
+
+	user := new(User)
+	user.UserId = userId
+	user.UserName = userName
+	user.Creation = time.Now()
+	user.LastUpdate = time.Now()
+
+	err = db.Insert(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func getOrCreateUser(db DB, profile *Profile) (*User, error) {
+
+	p, err := db.Get(Profile{}, profile.ProfileId, profile.Source)
+	if err != nil {
+		return nil, err
+	}
+
+	if p != nil {
+		profileSaved := p.(*Profile)
+		profile.UserId = profileSaved.UserId
+		profile.LastUpdate = time.Now()
+
+		_, err := db.Update(profile)
+		if err != nil {
+			return nil, err
+		}
+
+		u, err := db.Get(User{}, profile.UserId)
+		if err != nil {
+			return nil, err
+		}
+
+		user := u.(*User)
+
+		return user, nil
+	}
+
+	user, err := newUser(db, profile)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now this new profile has an user account
+	profile.UserId = user.UserId
+	profile.Creation = time.Now()
+	profile.LastUpdate = time.Now()
+
+	err = db.Insert(profile)
+	if err != nil {
+		return nil, err
+	}
+
+	// !!! REMEMBER TO GET USERS PIC!
+
+	return user, nil
+}
+
+func newToken(db DB, user *User) (*Token, error) {
+	token := new(Token)
+
+	tokenId := uniuri.NewLen(20)
+	t, err := db.Get(Token{}, tokenId)
+	for err == nil && t != nil {
+		// Shit, we generated an existing token...
+		// just one time in 10^32
+		// Let's play the lottery!
+		tokenId := uniuri.NewLen(20)
+		t, err = db.Get(Token{}, tokenId)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	token.TokenId = tokenId
+	token.UserId = user.UserId
+	token.Creation = time.Now()
+	return token, nil
 }
