@@ -7,10 +7,12 @@
 *.swp
 
 # Certificate files
+*.key
+*.csr
 *.pem
 
-# Ignore public directory
-/public/pic/*
+# Ignore public pic's directory
+/pic/*
 
 # But not ignore the default pic
-!/public/pic/default.png
+!/pic/default.png

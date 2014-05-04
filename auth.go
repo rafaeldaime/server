@@ -108,7 +108,26 @@ func AuthCallbackHandler(db DB, enc Encoder, s sessions.Session, w http.Response
 	// Here we have our http client configured to make calls
 	client := transport.Client()
 
-	profile, err := getProfile(client)
+	res, err := client.Get("https://graph.facebook.com/me")
+	if err != nil {
+		return http.StatusUnauthorized, Must(enc.Encode(
+			NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, mas nao foi possivel pegar perfil do facebook. %s", err))))
+	}
+
+	defer res.Body.Close()
+
+	data := new(interface{}) // Its a pointer to an interface
+	// The Decoder can handle a stream, unlike Unmarshal
+	decoder := json.NewDecoder(res.Body)
+	err = decoder.Decode(data) // Passing a pointer
+	if err != nil {
+		return http.StatusUnauthorized, Must(enc.Encode(
+			NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, mas a resposta do facebook nao foi um json valido. %s", err))))
+	}
+
+	profile, err := extractProfile(transport.Token, data)
 	if err != nil {
 		return http.StatusUnauthorized, Must(enc.Encode(
 			NewError(ErrorCodeDefault, fmt.Sprintf(
@@ -256,25 +275,6 @@ func checkOrGetPic(db DB, client *http.Client, user *User) {
 		}
 		log.Printf("New pic %s saved from user %s", pic.PicId, user.UserId)
 	}
-}
-
-func getProfile(client *http.Client) (*Profile, error) {
-	res, err := client.Get("https://graph.facebook.com/me")
-	if err != nil {
-		return nil, err
-	}
-
-	defer res.Body.Close()
-
-	data := new(interface{}) // Its a pointer to an interface
-	// The Decoder can handle a stream, unlike Unmarshal
-	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(data) // Passing a pointer
-	if err != nil {
-		return nil, err
-	}
-
-	return extractProfile(transport.Token, data)
 }
 
 func newUser(db DB, profile *Profile) (*User, error) {
