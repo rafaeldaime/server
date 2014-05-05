@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]> <html lang="en" ng-app="myApp" class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]> <html lang="en" ng-app="myApp" class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]> <html lang="en" ng-app="myApp" class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html lang="en" ng-app="myApp" class="no-js"> <!--<![endif]-->
+<html>
+  <head>
+  	<meta charset="utf-8"/>
+  	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+
+  	<title>Tur.ma</title>
+  	<meta name="description" content="O que a turma ta dizendo porai?!">
+  	<meta name="keywords" content="Tur.ma, conteudo, comentario, social">
+  	<meta name="viewport" content="width=device-width,initial-scale=1">
+
+ 	<link href="favicon.ico" rel="shortcut icon" type="image/x-icon">
+
+  	<link rel="stylesheet" href="css/app.css">
+
+  </head>
+  <body ng-app="main">
+
+  <iframe src="/login" width="300px" height="300px" border="1px"></iframe>
+
+  <ul class="menu">
+    <li><a href="#/view1">view1</a></li>
+    <li><a href="#/view2">view2</a></li>
+  </ul>
+
+<!--[if lt IE 7]>
+<p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+<![endif]-->
+
+  <div ng-view></div>
+
+  <div>Angular seed app: v<span app-version></span></div>
+  
+
+  <script src="js/angular/angular.js"></script>
+  <script src="js/angular/angular-route.js"></script>
+  <script src="js/angular/angular-cookies.js"></script>
+  <script src="js/angular/angular-resource.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/services.js"></script>
+  <script src="js/controllers.js"></script>
+  <script src="js/filters.js"></script>
+  <script src="js/directives.js"></script>
+  </body>
+</html>

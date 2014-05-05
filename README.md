@@ -2,6 +2,10 @@ My app server!
 
 Use the database mysql 5.6
 
+Remember to set the environment variable MARTINI_ENV=production in the production server!
+
+export MARTINI_ENV=production
+
 Generating the Certificates for SSL connection.
 
 openssl genrsa -out key.pem 4096

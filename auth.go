@@ -16,13 +16,13 @@ import (
 	"code.google.com/p/goauth2/oauth"
 	"github.com/dchest/uniuri" // give us random URIs
 	"github.com/go-martini/martini"
-	"github.com/martini-contrib/sessions"
+	"github.com/martini-contrib/render"
 )
 
 var config = &oauth.Config{
 	ClientId:     "560046220732101",
 	ClientSecret: "18d10b619523227e65ecf5b38fc18f90",
-	RedirectURL:  "http://localhost:8000/authcallback",
+	RedirectURL:  "http://localhost:8000/facecallback",
 	Scope:        "basic_info email",
 	AuthURL:      "https://www.facebook.com/dialog/oauth",
 	TokenURL:     "https://graph.facebook.com/oauth/access_token",
@@ -33,7 +33,13 @@ var transport = &oauth.Transport{
 	Transport: http.DefaultTransport,
 }
 
-func AuthMiddleware(s sessions.Session, c martini.Context, w http.ResponseWriter, r *http.Request) {
+func init() {
+	if martini.Env == "production" {
+		config.RedirectURL = "http://ira.do/facecallback"
+	}
+}
+
+func AuthMiddleware(c martini.Context, w http.ResponseWriter, r *http.Request) {
 	// tk := unmarshallToken(s)
 	// if tk != nil {
 	// 	// check if the access token is expired
@@ -68,7 +74,7 @@ func SecureCompare(given string, actual string) bool {
 
 // Handler that redirects user to the login page
 // if user is not logged in.
-func LoginRequiredHandler(s sessions.Session, w http.ResponseWriter, r *http.Request) {
+func LoginRequiredHandler(w http.ResponseWriter, r *http.Request) {
 	// Token := nil //unmarshallToken(s)
 	// if Token == nil || Token.IsExpired() {
 	// 	next := url.QueryEscape(r.URL.RequestURI())
@@ -76,33 +82,22 @@ func LoginRequiredHandler(s sessions.Session, w http.ResponseWriter, r *http.Req
 	// }
 }
 
-func LoginHandler(s sessions.Session, w http.ResponseWriter, r *http.Request) {
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	next := extractPath(r.URL.Query().Get("next"))
-	if s.Get("Token") == nil {
-		// User is not logged in.
-		http.Redirect(w, r, transport.Config.AuthCodeURL(next), 302)
-		return
-	}
-	// No need to login, redirect to the next page.
-	http.Redirect(w, r, next, 302)
+	http.Redirect(w, r, transport.Config.AuthCodeURL(next), 302)
+	return
 }
 
-func LogoutHandler(s sessions.Session, w http.ResponseWriter, r *http.Request) {
-	next := extractPath(r.URL.Query().Get("next"))
-	s.Delete("Token")
-	http.Redirect(w, r, next, 302)
-}
-
-func AuthCallbackHandler(db DB, enc Encoder, s sessions.Session, w http.ResponseWriter, r *http.Request) (int, string) {
+func FaceCallbackHandler(db DB, r render.Render, req *http.Request) {
 	//next := extractPath(r.URL.Query().Get("state"))
-	code := r.URL.Query().Get("code")
+	code := req.URL.Query().Get("code")
 	// Token = oauth.Token, err = oauth.OAuthError
 	// oauthToken, err := transport.Exchange(code)
 	_, err := transport.Exchange(code) //
 	if err != nil {
-		return http.StatusUnauthorized, Must(enc.Encode(
-			NewError(ErrorCodeDefault, fmt.Sprintf(
-				"Desculpe, mas nao conseguimos autentica-lo. %s", err))))
+		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
+			"Desculpe, mas nao conseguimos autentica-lo. %s", err))
+		return
 	}
 
 	// Here we have our http client configured to make calls
@@ -110,9 +105,9 @@ func AuthCallbackHandler(db DB, enc Encoder, s sessions.Session, w http.Response
 
 	res, err := client.Get("https://graph.facebook.com/me")
 	if err != nil {
-		return http.StatusUnauthorized, Must(enc.Encode(
-			NewError(ErrorCodeDefault, fmt.Sprintf(
-				"Desculpe, mas nao foi possivel pegar perfil do facebook. %s", err))))
+		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
+			"Desculpe, mas nao foi possivel pegar perfil do facebook. %s", err))
+		return
 	}
 
 	defer res.Body.Close()
@@ -122,23 +117,23 @@ func AuthCallbackHandler(db DB, enc Encoder, s sessions.Session, w http.Response
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(data) // Passing a pointer
 	if err != nil {
-		return http.StatusUnauthorized, Must(enc.Encode(
-			NewError(ErrorCodeDefault, fmt.Sprintf(
-				"Desculpe, mas a resposta do facebook nao foi um json valido. %s", err))))
+		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
+			"Desculpe, mas a resposta do facebook nao foi um json valido. %s", err))
+		return
 	}
 
 	profile, err := extractProfile(transport.Token, data)
 	if err != nil {
-		return http.StatusUnauthorized, Must(enc.Encode(
-			NewError(ErrorCodeDefault, fmt.Sprintf(
-				"Desculpe, mas nao conseguimos acessar seu perfil. %s", err))))
+		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
+			"Desculpe, mas nao conseguimos acessar seu perfil. %s", err))
+		return
 	}
 
 	user, err := getOrCreateUser(db, profile)
 	if err != nil {
-		return http.StatusUnauthorized, Must(enc.Encode(
-			NewError(ErrorCodeDefault, fmt.Sprintf(
-				"Desculpe, mas nao conseguimos processar seu perfil. %s", err))))
+		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
+			"Desculpe, mas nao conseguimos processar seu perfil. %s", err))
+		return
 	}
 
 	// After answare the request, check if this user has an pic
@@ -146,10 +141,18 @@ func AuthCallbackHandler(db DB, enc Encoder, s sessions.Session, w http.Response
 
 	token, err := newToken(db, user)
 
+	log.Printf("Token: %v", token)
 	// THIS TOKEN SHOULD BE SET BY JAVASCRIPT!
 	// USER IS AUTHENTICATED!
+	//Must(enc.Encode(token))
+	tokenJson, err := json.Marshal(token)
+	if err != nil {
+		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
+			"Desculpe, mas nao conseguimos processar seu perfil. %s", err))
+		return
+	}
 
-	return 200, Must(enc.Encode(token))
+	r.HTML(200, "authiframe", string(tokenJson))
 }
 
 // func unmarshallToken(s sessions.Session) (t *Token) {
