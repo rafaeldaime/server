@@ -1,16 +1,16 @@
 package main
 
 import (
-	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"code.google.com/p/goauth2/oauth"
@@ -18,6 +18,8 @@ import (
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/render"
 )
+
+const authPrefix = "Basic "
 
 var config = &oauth.Config{
 	ClientId:     "560046220732101",
@@ -39,47 +41,104 @@ func init() {
 	}
 }
 
-func AuthMiddleware(c martini.Context, w http.ResponseWriter, r *http.Request) {
-	// tk := unmarshallToken(s)
-	// if tk != nil {
-	// 	// check if the access token is expired
-	// 	if tk.IsExpired() && tk.Refresh() == "" {
-	// 		s.Delete("token")
-	// 		tk = nil
-	// 	}
-	// }
-	// Inject tokens.
-	// ... c.MapTo(tk, (*Tokens)(nil))
+// It's  returns an User instance when required
+type Me interface {
 }
 
-// Here is our BasicAuth
-func BasicAuth(username string, password string) http.HandlerFunc {
-	var siteAuth = base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
-	return func(res http.ResponseWriter, req *http.Request) {
-		auth := req.Header.Get("Authorization")
-		if !SecureCompare(auth, "Basic "+siteAuth) {
-			res.Header().Set("WWW-Authenticate", "Basic realm=\"Autorizacao requereida\"")
-			http.Error(res, "Not Authorized", http.StatusUnauthorized)
-		}
+func GetUser(me Me) *User {
+	user := me.(*User)
+	if user.UserId == "" {
+		return nil
+	} else {
+		return user
+	}
+
+}
+
+func MeHandler(me Me, r render.Render) {
+	user := GetUser(me)
+	if user == nil {
+		r.JSON(200, nil)
+	} else {
+		r.JSON(200, user)
 	}
 }
 
-// SecureCompare performs a constant time compare of two strings to limit timing attacks.
-func SecureCompare(given string, actual string) bool {
-	givenSha := sha256.Sum256([]byte(given))
-	actualSha := sha256.Sum256([]byte(actual))
+func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
+	header := r.Header.Get("Authorization")
 
-	return subtle.ConstantTimeCompare(givenSha[:], actualSha[:]) == 1
+	var err error
+
+	// Len of our 41 (20:20) char encoded in base64 is 56
+	// (C++) long base64EncodedSize = 4 * (int)Math.Ceiling(originalSizeInBytes / 3.0);
+	if (len(header) < len(authPrefix)+56) || !strings.HasPrefix(header, authPrefix) {
+		err = errors.New("Cabecalho de authorizacao invalido")
+	} else {
+		header = header[len(authPrefix):]
+		auth, err := decodeAuth(header)
+
+		if err == nil {
+
+			i := strings.Index(auth, ":")
+			if i == -1 {
+				err = errors.New("Cabecalho de authorizacao corrompido")
+			} else {
+
+				tokenid := auth[:i]
+				userid := auth[i+1:]
+
+				obj, err := db.Get(Token{}, tokenid)
+
+				if err == nil {
+
+					token := obj.(*Token)
+
+					if token.UserId == userid {
+						obj, err := db.Get(User{}, userid)
+						if err == nil {
+							user := obj.(*User)
+							c.MapTo(user, (*Me)(nil))
+						}
+					} else {
+						err = errors.New("Usuario nao identificado pelo token fornecido")
+					}
+				}
+			}
+		}
+	}
+	if err != nil {
+		c.MapTo(&User{}, (*Me)(nil))
+	}
+}
+
+// Here is our BasicAuth
+func encodeAuth(token *Token) string {
+	auth := base64.StdEncoding.EncodeToString([]byte(token.TokenId + ":" + token.UserId))
+	return authPrefix + auth
+	// auth := req.Header.Get("Authorization")
+	// if !SecureCompare(auth, "Basic "+siteAuth) {
+	// 	res.Header().Set("WWW-Authenticate", "Basic realm=\"Autorizacao requereida\"")
+	// 	http.Error(res, "Not Authorized", http.StatusUnauthorized)
+	// }
+}
+func decodeAuth(auth string) (string, error) { //*Token
+	decoded, err := base64.StdEncoding.DecodeString(auth)
+	if err != nil {
+		return "", err
+	}
+	log.Printf("DEU CERTO! %v \n", decoded)
+	return string(decoded), nil
 }
 
 // Handler that redirects user to the login page
 // if user is not logged in.
-func LoginRequiredHandler(w http.ResponseWriter, r *http.Request) {
-	// Token := nil //unmarshallToken(s)
-	// if Token == nil || Token.IsExpired() {
-	// 	next := url.QueryEscape(r.URL.RequestURI())
-	// 	http.Redirect(w, r, "/login?next="+next, 302)
-	// }
+func TokenHandler(w http.ResponseWriter, r *http.Request) (int, string) {
+	auth := r.Header.Get("Authorization")
+	decoded, err := decodeAuth(auth)
+	if err != nil {
+		return 500, err.Error()
+	}
+	return 200, decoded
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -141,18 +200,7 @@ func FaceCallbackHandler(db DB, r render.Render, req *http.Request) {
 
 	token, err := newToken(db, user)
 
-	log.Printf("Token: %v", token)
-	// THIS TOKEN SHOULD BE SET BY JAVASCRIPT!
-	// USER IS AUTHENTICATED!
-	//Must(enc.Encode(token))
-	tokenJson, err := json.Marshal(token)
-	if err != nil {
-		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
-			"Desculpe, mas nao conseguimos processar seu perfil. %s", err))
-		return
-	}
-
-	r.HTML(200, "authiframe", string(tokenJson))
+	r.HTML(200, "authiframe", encodeAuth(token))
 }
 
 // func unmarshallToken(s sessions.Session) (t *Token) {
@@ -401,5 +449,11 @@ func newToken(db DB, user *User) (*Token, error) {
 	token.TokenId = tokenId
 	token.UserId = user.UserId
 	token.Creation = time.Now()
+
+	err = db.Insert(token)
+	if err != nil {
+		return nil, err
+	}
+
 	return token, nil
 }

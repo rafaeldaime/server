@@ -1,0 +1,8 @@
+<h1>Login area</h1>
+
+<div ng-show="logged" class="ng-hide">
+	<h1>Voce fez login!</h1>
+	Auth: {{ auth }}
+</div>
+
+<iframe id="loginframe" ng-hide="logged" src="/login" width="300px" height="300px" border="1px"></iframe>

@@ -10,13 +10,39 @@
 
 // Demonstrate how to register services
 // In this case it is a simple value service.
-angular.module('myApp.services', []).
-  value('version', '0.1').
-  factory('helloWorldFromFactory', function() {
+angular.module('myApp.services', [])
+
+.value('version', '0.1')
+
+.factory('helloWorldFromFactory', function() {
 	return {
 		sayHello: function() {
 			return "Hello, World!"
+		}
 	}
-	
-});
-  
+})
+
+
+
+.factory('Auth', ['$cookieStore', '$http', function ($cookieStore, $http) {
+    // initialize to whatever is in the cookie, if anything
+    $http.defaults.headers.common['Authorization'] = $cookieStore.get('authdata');
+
+    //alert("$cookieStore.get('authdata')="+$cookieStore.get('authdata'))
+ 
+    return {
+        setCredentials: function (auth) {
+        	//alert("Lets set the credentials:"+auth)
+            $http.defaults.headers.common.Authorization = auth;
+            $cookieStore.put('authdata', auth);
+        },
+        clearCredentials: function () {
+            document.execCommand("ClearAuthenticationCache");
+            $cookieStore.remove('authdata');
+            $http.defaults.headers.common.Authorization = 'Basic ';
+        }
+    };
+}])
+
+
+;

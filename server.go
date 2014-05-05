@@ -40,32 +40,11 @@ func init() {
 	// Add the Auth Handlers
 	r.Get("/login", LoginHandler)
 	r.Get("/facecallback", FaceCallbackHandler)
+	r.Get("/token", TokenHandler)
+	r.Get("/me", MeHandler)
 
 	r.Get("/", func(r render.Render) {
 		r.HTML(200, "index", "")
-	})
-
-	r.Get("/admin.html", LoginRequiredHandler, func() string {
-		return `
-		<p>Admin</p>
-		<ul>
-		<li><a href="/">Home</a></li>
-		<li><a href="/logout">logout</a></li>
-		</ul>
-		`
-	})
-
-	// tokens are injected to the handlers
-	// r.Get("/token", func(enc Encoder, tokens Tokens) (int, string) {
-	// 	if tokens != nil {
-	// 		return http.StatusOK, Must(enc.Encode(tokens)) //.Access()
-	// 	}
-	// 	return 403, Must(enc.Encode("Nao autenticado"))
-	// })
-
-	// testing https secure
-	r.Get("/secure", BasicAuth(AuthToken, AuthPass), func() string {
-		return "Voce foi autenticado pelo Authorization Header!"
 	})
 
 	// Just a ping route
