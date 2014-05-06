@@ -40,11 +40,10 @@ func init() {
 	// Add the Auth Handlers
 	r.Get("/login", LoginHandler)
 	r.Get("/facecallback", FaceCallbackHandler)
-	r.Get("/token", TokenHandler)
 	r.Get("/me", MeHandler)
 
-	r.Get("/", func(r render.Render) {
-		r.HTML(200, "index", "")
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
 	})
 
 	// Just a ping route

@@ -42,103 +42,115 @@ func init() {
 }
 
 // It's  returns an User instance when required
-type Me interface {
+type Auth interface {
+	Logged() bool
+	GetUser() (*User, error)
 }
 
-func GetUser(me Me) *User {
-	user := me.(*User)
-	if user.UserId == "" {
-		return nil
+type UserAuth struct {
+	user *User
+	err  error
+}
+
+func (u *UserAuth) Logged() bool {
+	if u.err != nil || u.user == nil {
+		return false
 	} else {
-		return user
+		return true
 	}
-
 }
 
-func MeHandler(me Me, r render.Render) {
-	user := GetUser(me)
-	if user == nil {
-		r.JSON(200, nil)
+func (u *UserAuth) GetUser() (*User, error) {
+	if u.err != nil || u.user == nil {
+		return nil, u.err
 	} else {
-		r.JSON(200, user)
+		return u.user, nil
+	}
+}
+
+func MeHandler(auth Auth, r render.Render) {
+	user, err := auth.GetUser()
+	if err != nil {
+		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Voce nao esta logado! %s.", err)))
+	} else {
+		r.JSON(http.StatusOK, user)
 	}
 }
 
 func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 	header := r.Header.Get("Authorization")
 
-	var err error
+	if header == "" {
+		err := errors.New("Voce nao apresentou credenciais de autorizacao")
+		userAuth := &UserAuth{nil, err}
+		c.MapTo(userAuth, (*Auth)(nil))
+		return
+	}
 
 	// Len of our 41 (20:20) char encoded in base64 is 56
 	// (C++) long base64EncodedSize = 4 * (int)Math.Ceiling(originalSizeInBytes / 3.0);
 	if (len(header) < len(authPrefix)+56) || !strings.HasPrefix(header, authPrefix) {
-		err = errors.New("Cabecalho de authorizacao invalido")
-	} else {
-		header = header[len(authPrefix):]
-		auth, err := decodeAuth(header)
-
-		if err == nil {
-
-			i := strings.Index(auth, ":")
-			if i == -1 {
-				err = errors.New("Cabecalho de authorizacao corrompido")
-			} else {
-
-				tokenid := auth[:i]
-				userid := auth[i+1:]
-
-				obj, err := db.Get(Token{}, tokenid)
-
-				if err == nil {
-
-					token := obj.(*Token)
-
-					if token.UserId == userid {
-						obj, err := db.Get(User{}, userid)
-						if err == nil {
-							user := obj.(*User)
-							c.MapTo(user, (*Me)(nil))
-						}
-					} else {
-						err = errors.New("Usuario nao identificado pelo token fornecido")
-					}
-				}
-			}
-		}
+		err := errors.New("Credenciais de authorizacao apresentadas sao invalidas")
+		userAuth := &UserAuth{nil, err}
+		c.MapTo(userAuth, (*Auth)(nil))
+		return
 	}
+
+	header = header[len(authPrefix):]
+	auth, err := decodeAuth(header)
 	if err != nil {
-		c.MapTo(&User{}, (*Me)(nil))
+		userAuth := &UserAuth{nil, err}
+		c.MapTo(userAuth, (*Auth)(nil))
+		return
 	}
+
+	i := strings.Index(auth, ":")
+	if i == -1 {
+		err = errors.New("Credenciais de authorizacao estao corrompidas")
+		userAuth := &UserAuth{nil, err}
+		c.MapTo(userAuth, (*Auth)(nil))
+		return
+	}
+
+	tokenid := auth[:i]
+	userid := auth[i+1:]
+
+	obj, err := db.Get(Token{}, tokenid)
+	if err != nil {
+		userAuth := &UserAuth{nil, err}
+		c.MapTo(userAuth, (*Auth)(nil))
+		return
+	}
+
+	token := obj.(*Token)
+	if token.UserId != userid {
+		err = errors.New("Usuario nao identificado pelas credenciais fornecidas")
+		userAuth := &UserAuth{nil, err}
+		c.MapTo(userAuth, (*Auth)(nil))
+		return
+	}
+
+	obj, err = db.Get(User{}, userid)
+	if err != nil {
+		userAuth := &UserAuth{nil, err}
+		c.MapTo(userAuth, (*Auth)(nil))
+		return
+	}
+
+	user := obj.(*User)
+	userAuth := &UserAuth{user: user, err: nil}
+	c.MapTo(userAuth, (*Auth)(nil))
 }
 
 // Here is our BasicAuth
 func encodeAuth(token *Token) string {
 	auth := base64.StdEncoding.EncodeToString([]byte(token.TokenId + ":" + token.UserId))
 	return authPrefix + auth
-	// auth := req.Header.Get("Authorization")
-	// if !SecureCompare(auth, "Basic "+siteAuth) {
-	// 	res.Header().Set("WWW-Authenticate", "Basic realm=\"Autorizacao requereida\"")
-	// 	http.Error(res, "Not Authorized", http.StatusUnauthorized)
-	// }
 }
-func decodeAuth(auth string) (string, error) { //*Token
+func decodeAuth(auth string) (string, error) {
 	decoded, err := base64.StdEncoding.DecodeString(auth)
-	if err != nil {
-		return "", err
-	}
-	log.Printf("DEU CERTO! %v \n", decoded)
-	return string(decoded), nil
-}
-
-// Handler that redirects user to the login page
-// if user is not logged in.
-func TokenHandler(w http.ResponseWriter, r *http.Request) (int, string) {
-	auth := r.Header.Get("Authorization")
-	decoded, err := decodeAuth(auth)
-	if err != nil {
-		return 500, err.Error()
-	}
-	return 200, decoded
+	return string(decoded), err
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -200,7 +212,8 @@ func FaceCallbackHandler(db DB, r render.Render, req *http.Request) {
 
 	token, err := newToken(db, user)
 
-	r.HTML(200, "authiframe", encodeAuth(token))
+	// !!! Here we have to return JSON if not called from our iframe
+	r.HTML(200, "facebookauthcallback", encodeAuth(token))
 }
 
 // func unmarshallToken(s sessions.Session) (t *Token) {

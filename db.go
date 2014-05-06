@@ -61,13 +61,13 @@ func init() {
 }
 
 type User struct {
-	UserId     string    `db:"userid" json:"userid"`         // *PK max: 20
-	UserName   string    `db:"username" json:"username"`     // *UQ max: 20
-	LikeCount  int       `db:"likecount" json:"likecount"`   // default: 0
-	Creation   time.Time `db:"creation" json:"creation"`     // *NN
-	LastUpdate time.Time `db:"lastupdate" json:"lastupdate"` // *NN
-	Deleted    bool      `db:"deleted" json:"deleted"`       // default: 0
-	Admin      bool      `db:"admin" json:"admin"`           // default: 0
+	UserId     string    `db:"userid" json:"userid"`       // *PK max: 20
+	UserName   string    `db:"username" json:"username"`   // *UQ max: 20
+	LikeCount  int       `db:"likecount" json:"likecount"` // default: 0
+	Creation   time.Time `db:"creation" json:"-"`          // *NN
+	LastUpdate time.Time `db:"lastupdate" json:"-"`        // *NN
+	Deleted    bool      `db:"deleted" json:"-"`           // default: 0
+	Admin      bool      `db:"admin" json:"-"`             // default: 0
 }
 
 type Pic struct {

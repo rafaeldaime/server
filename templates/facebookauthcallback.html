@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Tur.ma</title>
+    </head>
+    <body onload="javascript: callParent();">
+    	<h1>Efetuando o login...</h1>
+        <script>
+        	function callParent() {
+        		parent.authorize({{.}});
+        	}
+        </script>
+    </body>
+</html>
