@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -24,21 +23,15 @@ const authPrefix = "Basic "
 var config = &oauth.Config{
 	ClientId:     "560046220732101",
 	ClientSecret: "18d10b619523227e65ecf5b38fc18f90",
-	RedirectURL:  "http://localhost:8000/facecallback",
-	Scope:        "basic_info email",
-	AuthURL:      "https://www.facebook.com/dialog/oauth",
-	TokenURL:     "https://graph.facebook.com/oauth/access_token",
+	//RedirectURL:   // It is setted dynamicaly on LoginHandler based on server current url
+	Scope:    "basic_info email",
+	AuthURL:  "https://www.facebook.com/dialog/oauth",
+	TokenURL: "https://graph.facebook.com/oauth/access_token",
 }
 
 var transport = &oauth.Transport{
 	Config:    config,
 	Transport: http.DefaultTransport,
-}
-
-func init() {
-	if martini.Env == "production" {
-		config.RedirectURL = "http://ira.do/facecallback"
-	}
 }
 
 // It's  returns an User instance when required
@@ -123,6 +116,14 @@ func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 		return
 	}
 
+	if obj == nil {
+		// This tokenid was not found
+		err = errors.New("Credenciais fornecidas nao foram encontradas")
+		userAuth := &UserAuth{nil, err}
+		c.MapTo(userAuth, (*Auth)(nil))
+		return
+	}
+
 	token := obj.(*Token)
 	if token.UserId != userid {
 		err = errors.New("Usuario nao identificado pelas credenciais fornecidas")
@@ -154,20 +155,54 @@ func decodeAuth(auth string) (string, error) {
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	next := extractPath(r.URL.Query().Get("next"))
-	http.Redirect(w, r, transport.Config.AuthCodeURL(next), 302)
+	// The state will inform if the response will be json or html
+	// Html is the default request and will do 2 things:
+	// Set the cookie "credentials" and return the visitor to the main page
+	state := r.URL.Query().Get("state")
+	if state == "" { // The default is a direct html request
+		state = "html"
+	}
+
+	// Set based on the server current url
+	transport.Config.RedirectURL = Env.Url + "logincallback/"
+
+	http.Redirect(w, r, transport.Config.AuthCodeURL(state), 302)
 	return
 }
 
-func FaceCallbackHandler(db DB, r render.Render, req *http.Request) {
-	//next := extractPath(r.URL.Query().Get("state"))
-	code := req.URL.Query().Get("code")
-	// Token = oauth.Token, err = oauth.OAuthError
-	// oauthToken, err := transport.Exchange(code)
-	_, err := transport.Exchange(code) //
+func renderHtmlOrJson(r render.Render, state string, err error, credentials string, message string) {
+	templateData := map[string]interface{}{
+		"credentials": credentials,
+		"error":       "",
+		"message":     message,
+	}
 	if err != nil {
-		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
-			"Desculpe, mas nao conseguimos autentica-lo. %s", err))
+		templateData["error"] = err.Error()
+
+		if state == "json" {
+			r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(message+" %s.", err)))
+		} else {
+			r.HTML(http.StatusUnauthorized, "authcallback", templateData)
+		}
+	} else {
+		if state == "json" {
+			r.JSON(http.StatusOK, map[string]interface{}{"credentials": credentials, "message": message})
+		} else {
+			r.HTML(http.StatusOK, "authcallback", templateData)
+		}
+	}
+}
+
+func LoginCallbackHandler(db DB, r render.Render, req *http.Request) {
+	// The state indicates if it is an browser request, or an default json request
+	state := req.URL.Query().Get("state")
+
+	code := req.URL.Query().Get("code")
+
+	// Token = oauth.Token, err = oauth.OAuthError
+	_, err := transport.Exchange(code)
+	if err != nil {
+		renderHtmlOrJson(r, state, err, "", "Desculpe, mas nao conseguimos autentica-lo.")
 		return
 	}
 
@@ -176,8 +211,7 @@ func FaceCallbackHandler(db DB, r render.Render, req *http.Request) {
 
 	res, err := client.Get("https://graph.facebook.com/me")
 	if err != nil {
-		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
-			"Desculpe, mas nao foi possivel pegar perfil do facebook. %s", err))
+		renderHtmlOrJson(r, state, err, "", "Desculpe, mas nao foi possivel pegar perfil do facebook.")
 		return
 	}
 
@@ -188,50 +222,34 @@ func FaceCallbackHandler(db DB, r render.Render, req *http.Request) {
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(data) // Passing a pointer
 	if err != nil {
-		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
-			"Desculpe, mas a resposta do facebook nao foi um json valido. %s", err))
+		renderHtmlOrJson(r, state, err, "", "Desculpe, mas a resposta do facebook nao foi um json valido.")
 		return
 	}
 
 	profile, err := extractProfile(transport.Token, data)
 	if err != nil {
-		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
-			"Desculpe, mas nao conseguimos acessar seu perfil. %s", err))
+		renderHtmlOrJson(r, state, err, "", "Desculpe, mas nao conseguimos acessar seu perfil.")
 		return
 	}
 
 	user, err := getOrCreateUser(db, profile)
 	if err != nil {
-		r.HTML(http.StatusUnauthorized, "error", fmt.Sprintf(
-			"Desculpe, mas nao conseguimos processar seu perfil. %s", err))
+		renderHtmlOrJson(r, state, err, "", "Desculpe, mas nao conseguimos processar seu perfil")
 		return
 	}
 
 	// After answare the request, check if this user has an pic
-	defer checkOrGetPic(db, client, user)
+	err = checkOrGetPic(db, client, user)
+	if err != nil {
+		renderHtmlOrJson(r, state, err, "", "Desculpe, mas ocorreu um erro ao processar sua foto do perfil.")
+		return
+	}
 
 	token, err := newToken(db, user)
+	credentials := encodeAuth(token)
 
-	// !!! Here we have to return JSON if not called from our iframe
-	r.HTML(200, "facebookauthcallback", encodeAuth(token))
-}
+	renderHtmlOrJson(r, state, nil, credentials, fmt.Sprintf("Bem vindo %s.", user.FullName))
 
-// func unmarshallToken(s sessions.Session) (t *Token) {
-// 	if s.Get("Token") == nil {
-// 		return
-// 	}
-// 	data := s.Get("Token").([]byte)
-// 	var tk oauth.Token
-// 	json.Unmarshal(data, &tk)
-// 	return &Token{tk}
-// }
-
-func extractPath(next string) string {
-	n, err := url.Parse(next)
-	if err != nil {
-		return "/"
-	}
-	return n.Path
 }
 
 func extractProfile(token *oauth.Token, data *interface{}) (*Profile, error) {
@@ -241,10 +259,8 @@ func extractProfile(token *oauth.Token, data *interface{}) (*Profile, error) {
 
 	profile := new(Profile)
 
-	// Just Facebook for now
+	// My Facebook profile
 	profile.ProfileId = p["id"].(string)
-	// I can know that is facebook by my token? maybe...
-	profile.Source = "facebook"
 	// UserId is not inserted know, but is required
 	profile.UserName = p["username"].(string)
 	profile.Email = p["email"].(string)
@@ -274,7 +290,7 @@ func extractProfile(token *oauth.Token, data *interface{}) (*Profile, error) {
 
 // Take a http client with a transport pre-configured with the user credentials
 // and return de name of the pic saved in public/pics/
-func getPic(db DB, client *http.Client, user *User) (*Pic, error) {
+func getPic(db DB, client *http.Client) (*Pic, error) {
 	// OK WE HAVE THE PROFILE, BUT WE DON'T HAVE USER'S PICTURE
 	// LETS TAKE IT
 	res, err := client.Get("https://graph.facebook.com/me/picture")
@@ -302,7 +318,7 @@ func getPic(db DB, client *http.Client, user *User) (*Pic, error) {
 		return nil, err
 	}
 
-	fo, err := os.Create("public/pic/" + picId + ".png")
+	fo, err := os.Create("public/img/pic/" + picId + ".png")
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +334,6 @@ func getPic(db DB, client *http.Client, user *User) (*Pic, error) {
 
 	pic := new(Pic)
 	pic.PicId = picId
-	pic.UserId = user.UserId
 	pic.Creation = time.Now()
 	pic.Deleted = false // Lol...
 
@@ -330,15 +345,27 @@ func getPic(db DB, client *http.Client, user *User) (*Pic, error) {
 	return pic, nil
 }
 
-func checkOrGetPic(db DB, client *http.Client, user *User) {
-	count, err := db.SelectInt("select count(*) from pic where userid=?", user.UserId)
-	if err != nil || count == 0 {
-		pic, err := getPic(db, client, user)
+func checkOrGetPic(db DB, client *http.Client, user *User) error {
+	// Check if this user has a default pic yet
+	if user.PicId == "default" {
+		pic, err := getPic(db, client)
 		if err != nil {
-			log.Printf("Error getting users pic: %v", err)
+			return err
 		}
+
 		log.Printf("New pic %s saved from user %s", pic.PicId, user.UserId)
+
+		user.PicId = pic.PicId
+		count, err := db.Update(user)
+		if err != nil {
+			return err
+		}
+		if count == 0 {
+			user.PicId = "default"
+			return errors.New("Nenhum usuario foi atualizado com a foto salva")
+		}
 	}
+	return nil
 }
 
 func newUser(db DB, profile *Profile) (*User, error) {
@@ -354,8 +381,7 @@ func newUser(db DB, profile *Profile) (*User, error) {
 
 	for err == nil && len(users) != 0 {
 
-		log.Printf("U[%v]: %#v", len(users), users)
-		//return nil, nil
+		log.Printf("Trying to create another userid U[%v]: %#v \n", len(users), users)
 
 		u := users[0]
 		users = users[:0] // Clear my slice
@@ -369,7 +395,7 @@ func newUser(db DB, profile *Profile) (*User, error) {
 		// If already exists an user with this userName
 		if u.UserName == userName {
 			increment += 1
-			userName = fmt.Sprintf("%s-%d", profile.UserName, increment)
+			userName = fmt.Sprintf("%s%d", profile.UserName, increment)
 		}
 
 		// Check if still existing an user like this
@@ -383,6 +409,8 @@ func newUser(db DB, profile *Profile) (*User, error) {
 
 	user := new(User)
 	user.UserId = userId
+	user.PicId = "default" // Reference to default pic
+	user.FullName = profile.FullName
 	user.UserName = userName
 	user.Creation = time.Now()
 	user.LastUpdate = time.Now()
@@ -397,7 +425,7 @@ func newUser(db DB, profile *Profile) (*User, error) {
 
 func getOrCreateUser(db DB, profile *Profile) (*User, error) {
 
-	p, err := db.Get(Profile{}, profile.ProfileId, profile.Source)
+	p, err := db.Get(Profile{}, profile.ProfileId)
 	if err != nil {
 		return nil, err
 	}

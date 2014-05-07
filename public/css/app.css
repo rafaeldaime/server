@@ -2,6 +2,67 @@ body {
 	background-color: #FFEEFF;
 }
 
+/* Used to hide content when it is loading */
+[ng\:cloak], [ng-cloak], [data-ng-cloak], [x-ng-cloak], .ng-cloak, .x-ng-cloak {
+  display: none !important;
+}
+
+.spinner {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+    height: 32px;
+    width: 32px;
+	margin-left: -32px;
+	margin-top: -32px;
+    background-position: center center;
+    background-repeat: no-repeat;
+    border-radius: 50%;
+    opacity: .7;
+    background: url("/img/spinner.gif");
+    z-index: 998;
+}
+
+.error, .message {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+    width: 300px;
+	margin-left: -150px;
+    z-index: 999;
+    background-color: #FFFFFF;
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+.error h3, .message h3 {
+    padding: 10px 10px;
+    background-color: #EFEFEF;
+    color: #000;
+    margin: -10px;
+    margin-bottom: 10px;
+}
+.error div, .message div {
+	position: absolute;
+	right: 4px;
+	top: -1px;
+    padding: 0px 10px;
+    z-index: 999;
+    background-color: #999;
+    color: #FFF;
+    border: 1px solid #ccc;
+}
+.error span {
+    margin: 10px 10px;
+    color: #800000;
+    font-weight: bold;
+}
+.message span {
+    margin: 10px 10px;
+    color: #000;
+    font-weight: bold;
+}
+
+
 .auth {
 	position: absolute;
 	width: 300px;
@@ -10,4 +71,5 @@ body {
 	top: 50%;
 	margin-left: -150px;
 	margin-top: -150px;
+	background-color: #FFF;
 }

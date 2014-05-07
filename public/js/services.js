@@ -24,52 +24,58 @@ angular.module('app.services', [])
 
 
 
-.factory('Auth', ['$cookieStore', '$http', function ($cookieStore, $http) {
+.factory('Auth', ['$cookies', '$http', function ($cookies, $http) {
     return {
     	// Return to callback user, or null if credentials error
-        login: function (credentials, callback) {
+        login: function (callback) {
+        	var credentials = $cookies.credentials;
+        	if (!credentials) {
+        		// User not already logged but there is no error
+        		callback(null, null);
+        		return
+        	}
         	this.setCredentials(credentials);
         	var clearCredentials = this.clearCredentials;
         	$http({method: 'GET', url: '/me'}).
 			    success(function(data, status, headers, config) {
 			    	// OK! Return user
 			    	// For some reason, the JSON returned was decodded
+			    	if (data.error) {
+			    		callback(null, data);
+			    		return
+			    	}
+
 		        	callback(data);
 			    }).
 			    error(function(data, status, headers, config) {
-			    	// ERROR! Alert and return nil
-			    	if (data.error) {
-			    		alert(data.error.message);
+			    	if (data.error) { // Returned an APIError
+			    		callback(null, data);
+			    		clearCredentials();
+			    		return
 			    	}
-			    	else {
-			    		alert("Ocorreu um erro ao tentar te identificar")
-			    	}
-			    	clearCredentials();
-			    	callback(null); // User will be setted to null
+
+	        		error = { // Creationg a new error object to be returned
+	        			error: {
+		        			code: 1, // Default error code
+		        			message: "Ocorreu um erro ao tentar te identificar."
+		        		}
+	        		}
+	        		callback(null, error)
+		    		clearCredentials();
+			    	
 		    });
-        },
-        // This function returns to the callback the user already logged
-        logged: function (callback) {
-        	if ($cookieStore.get('credentials')){
-        		this.login($cookieStore.get('credentials'), callback);
-        	}
-        	else {
-        		// User not already logged
-        		this.clearCredentials();
-        		callback(null);
-        	}
         },
         logout: function () {
             this.clearCredentials();
         },
         setCredentials: function (credentials) {
             $http.defaults.headers.common.Authorization = credentials;
-            $cookieStore.put('credentials', credentials);
+            $cookies.credentials = credentials;
         },
         clearCredentials: function () {
             document.execCommand("ClearAuthenticationCache");
-            $cookieStore.remove('credentials');
-            $http.defaults.headers.common.Authorization = '';
+            delete $cookies.credentials
+            $http.defaults.headers.common.Authorization = "";
         }
     };
 }])

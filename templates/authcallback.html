@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Tur.ma</title>
+    </head>
+    <body onload="javascript: authorize();">
+    	<h1>Tur.ma</h1>
+        <h3>{{.message}}</h3>
+        <h4 style="color:red">{{.error}}</h4>
+        <h5>
+            Voce sera redirecionado de volta para pagina principal, ou
+            <a href="/">clique aqui para ir</a>
+        </h5>
+        <script>
+        credentials = "{{.credentials}}";
+        function createCookie(name,value,months) {
+            var date = new Date();
+            date.setTime(date.getTime()+(months*30*24*60*60*1000));
+            var expires = date.toGMTString();
+            document.cookie = name+"="+value+"; expires="+expires+"; path=/";
+        }
+        function authorize() {
+            if (credentials != "") {
+                // If this user gots credentials, so we will save it
+                createCookie("credentials", credentials, 12);
+                // and we redirects user to the main page
+                setTimeout("window.location.replace('/');", 2000);
+            }
+            else {
+                // This user can't login, we will give more time him to read the message
+                setTimeout("location.href = '/';", 5000);
+            }
+        }
+        </script>
+    </body>
+</html>

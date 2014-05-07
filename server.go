@@ -1,20 +1,36 @@
 package main
 
 import (
-	"github.com/go-martini/martini"
-	"github.com/martini-contrib/render"
+	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/go-martini/martini"
+	"github.com/martini-contrib/render"
 )
 
-// The only one acess token just for testing https
-const AuthToken = "token2"
-const AuthPass = ""
+var Env struct {
+	Url        string
+	Port       int
+	Production bool
+}
 
 // The only one martini instance
 var m *martini.Martini
 
 func init() {
+	if martini.Env == "production" {
+		log.Println("Server in production")
+		Env.Port = 8000
+		Env.Url = "http://tur.ma/"
+		Env.Production = true
+	} else {
+		log.Println("Server in development")
+		Env.Port = 8000
+		Env.Url = fmt.Sprintf("http://localhost:%d/", Env.Port)
+		Env.Production = true
+	}
+
 	m = martini.New()
 
 	// Setup middleware
@@ -37,11 +53,6 @@ func init() {
 	// Setup routes
 	r := martini.NewRouter()
 
-	// Add the Auth Handlers
-	r.Get("/login", LoginHandler)
-	r.Get("/facecallback", FaceCallbackHandler)
-	r.Get("/me", MeHandler)
-
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
 	})
@@ -51,25 +62,24 @@ func init() {
 		return "pong!"
 	})
 
-	// Just a ping route
-	r.Get("/api", func() string {
-		return "its my api!"
+	// Add the Auth Handlers
+	r.Get("/login", LoginHandler)
+	r.Get("/logincallback", LoginCallbackHandler)
+	r.Get("/me", MeHandler)
+
+	r.Get("/channel", getAllChannels)
+
+	r.NotFound(func(r render.Render, req *http.Request) {
+
+		r.JSON(http.StatusNotFound, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas nao ha nada no endereço requisitado. [%s] %s", req.Method, req.RequestURI)))
 	})
 
-	// r.NotFound(func(r *http.Request) (int, string) {
-	// 	return http.StatusNotFound, "Pagina nao encontrada " + r.URL.Path
-	// })
-
-	// Add the routesr action
+	// Add the routers to my martini instances
 	m.Action(r.Handle)
 }
 
 func main() {
-	if martini.Env == "production" {
-		log.Println("Server in production")
-	} else {
-		log.Println("Server in development")
-	}
 	// Starting de HTTPS server in a new goroutine
 
 	// log.Println("Starting HTTPs server in port 8001...")
@@ -80,8 +90,8 @@ func main() {
 	// }()
 
 	// Starting de HTTP server
-	log.Println("Starting HTTP server in port 8000...")
-	if err := http.ListenAndServe(":8000", m); err != nil {
+	log.Println("Starting HTTP server in " + Env.Url + " ...")
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", Env.Port), m); err != nil {
 		log.Fatal(err)
 	}
 
