@@ -74,7 +74,7 @@ angular.module('app.services', [])
         },
         clearCredentials: function () {
             document.execCommand("ClearAuthenticationCache");
-            delete $cookies.credentials
+            delete $cookies.credentials;
             $http.defaults.headers.common.Authorization = "";
         }
     };

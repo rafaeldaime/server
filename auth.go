@@ -18,8 +18,6 @@ import (
 	"github.com/martini-contrib/render"
 )
 
-const authPrefix = "Basic "
-
 var config = &oauth.Config{
 	ClientId:     "560046220732101",
 	ClientSecret: "18d10b619523227e65ecf5b38fc18f90",
@@ -83,14 +81,13 @@ func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 
 	// Len of our 41 (20:20) char encoded in base64 is 56
 	// (C++) long base64EncodedSize = 4 * (int)Math.Ceiling(originalSizeInBytes / 3.0);
-	if (len(header) < len(authPrefix)+56) || !strings.HasPrefix(header, authPrefix) {
-		err := errors.New("Credenciais de authorizacao apresentadas sao invalidas")
+	if len(header) < 56 {
+		err := errors.New("Credenciais de authorizacao apresentadas sao invalidas.")
 		userAuth := &UserAuth{nil, err}
 		c.MapTo(userAuth, (*Auth)(nil))
 		return
 	}
 
-	header = header[len(authPrefix):]
 	auth, err := decodeAuth(header)
 	if err != nil {
 		userAuth := &UserAuth{nil, err}
@@ -147,7 +144,7 @@ func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 // Here is our BasicAuth
 func encodeAuth(token *Token) string {
 	auth := base64.StdEncoding.EncodeToString([]byte(token.TokenId + ":" + token.UserId))
-	return authPrefix + auth
+	return auth
 }
 func decodeAuth(auth string) (string, error) {
 	decoded, err := base64.StdEncoding.DecodeString(auth)
@@ -170,30 +167,17 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func renderHtmlOrJson(r render.Render, state string, err error, credentials string, message string) {
-	templateData := map[string]interface{}{
-		"credentials": credentials,
-		"error":       "",
-		"message":     message,
-	}
-	if err != nil {
-		templateData["error"] = err.Error()
-
-		if state == "json" {
-			r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(message+" %s.", err)))
-		} else {
-			r.HTML(http.StatusUnauthorized, "authcallback", templateData)
-		}
+func renderHtmlOrJson(r render.Render, w http.ResponseWriter, req *http.Request, state string, err error, message string) {
+	if state == "json" {
+		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(message+" %s.", err)))
 	} else {
-		if state == "json" {
-			r.JSON(http.StatusOK, map[string]interface{}{"credentials": credentials, "message": message})
-		} else {
-			r.HTML(http.StatusOK, "authcallback", templateData)
-		}
+		cookieError := &http.Cookie{Name: "error", Value: fmt.Sprintf(message+" %s.", err), MaxAge: 60 * 30, Path: "/"}
+		http.SetCookie(w, cookieError)
+		http.Redirect(w, req, "/", 302)
 	}
 }
 
-func LoginCallbackHandler(db DB, r render.Render, req *http.Request) {
+func LoginCallbackHandler(db DB, r render.Render, w http.ResponseWriter, req *http.Request) {
 	// The state indicates if it is an browser request, or an default json request
 	state := req.URL.Query().Get("state")
 
@@ -202,7 +186,7 @@ func LoginCallbackHandler(db DB, r render.Render, req *http.Request) {
 	// Token = oauth.Token, err = oauth.OAuthError
 	_, err := transport.Exchange(code)
 	if err != nil {
-		renderHtmlOrJson(r, state, err, "", "Desculpe, mas nao conseguimos autentica-lo.")
+		renderHtmlOrJson(r, w, req, state, err, "Desculpe, mas nao conseguimos autentica-lo.")
 		return
 	}
 
@@ -211,7 +195,7 @@ func LoginCallbackHandler(db DB, r render.Render, req *http.Request) {
 
 	res, err := client.Get("https://graph.facebook.com/me")
 	if err != nil {
-		renderHtmlOrJson(r, state, err, "", "Desculpe, mas nao foi possivel pegar perfil do facebook.")
+		renderHtmlOrJson(r, w, req, state, err, "Desculpe, mas nao foi possivel pegar perfil do facebook.")
 		return
 	}
 
@@ -222,34 +206,42 @@ func LoginCallbackHandler(db DB, r render.Render, req *http.Request) {
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(data) // Passing a pointer
 	if err != nil {
-		renderHtmlOrJson(r, state, err, "", "Desculpe, mas a resposta do facebook nao foi um json valido.")
+		renderHtmlOrJson(r, w, req, state, err, "Desculpe, mas a resposta do facebook nao foi um json valido.")
 		return
 	}
 
 	profile, err := extractProfile(transport.Token, data)
 	if err != nil {
-		renderHtmlOrJson(r, state, err, "", "Desculpe, mas nao conseguimos acessar seu perfil.")
+		renderHtmlOrJson(r, w, req, state, err, "Desculpe, mas nao conseguimos acessar seu perfil.")
 		return
 	}
 
 	user, err := getOrCreateUser(db, profile)
 	if err != nil {
-		renderHtmlOrJson(r, state, err, "", "Desculpe, mas nao conseguimos processar seu perfil")
+		renderHtmlOrJson(r, w, req, state, err, "Desculpe, mas nao conseguimos processar seu perfil")
 		return
 	}
 
 	// After answare the request, check if this user has an pic
 	err = checkOrGetPic(db, client, user)
 	if err != nil {
-		renderHtmlOrJson(r, state, err, "", "Desculpe, mas ocorreu um erro ao processar sua foto do perfil.")
+		renderHtmlOrJson(r, w, req, state, err, "Desculpe, mas ocorreu um erro ao processar sua foto do perfil.")
 		return
 	}
 
 	token, err := newToken(db, user)
 	credentials := encodeAuth(token)
 
-	renderHtmlOrJson(r, state, nil, credentials, fmt.Sprintf("Bem vindo %s.", user.FullName))
-
+	if state == "json" {
+		r.JSON(http.StatusOK, map[string]interface{}{"credentials": credentials})
+		return
+	}
+	// COOKIES CAN'T HAVE VALUES WITH COMMA OR SPACE !!!
+	cookieCredentials := &http.Cookie{Name: "credentials", Value: credentials, MaxAge: 60 * 60 * 24 * 30 * 12, Path: "/"}
+	cookieMessage := &http.Cookie{Name: "message", Value: "Logou-se!", MaxAge: 60 * 30, Path: "/"}
+	http.SetCookie(w, cookieCredentials)
+	http.SetCookie(w, cookieMessage)
+	http.Redirect(w, req, "/", 302)
 }
 
 func extractProfile(token *oauth.Token, data *interface{}) (*Profile, error) {

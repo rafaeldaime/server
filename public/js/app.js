@@ -23,33 +23,43 @@ angular.module('app', [
 .run(function run () {
 })
 
-.controller('AppController', ['$scope', '$http', '$timeout', 'Auth', function($scope, $http, $timeout, Auth) {
+.controller('AppController', ['$scope', '$http', '$timeout', '$cookies', 'Auth', function($scope, $http, $timeout, $cookies, Auth) {
 	$scope.spinner = false;
 	$scope.user = null;
 	$scope.error = null;
 	$scope.channels = null;
 	$scope.message = null;
 
-	$scope.newError = function (message) {
-		error = { // Creationg a new error object to be returned
-			error: {
-    			code: 1, // Default error code
-    			message: message
-    		}
-		}
-		$scope.showError(erro)
+	$scope.showMessage = function (message) {
+		$scope.message = message;
+		$timeout($scope.clearMessage, 5000);
+		return
+	}
+	$scope.clearMessage = function () {
+		$scope.message = null;
 	}
 
 	$scope.showError = function (error) {
-		$scope.error = error;
+		if (error.error) {
+			$scope.error = error;
+		}
+		else {
+			$scope.error =  { // Creationg a new error object
+				error: {
+	    			code: 1, // Default error code
+	    			message: error
+	    		}
+			}
+		}
 		$timeout($scope.clearError, 5000);
 		return
 	}
-
 	$scope.clearError = function () {
 		$scope.error = null;
 	}
 
+
+	// User login functions
 	$scope.loginCallback = function (user, error) {
 		if (error) {
 			$scope.showError(error);
@@ -58,14 +68,25 @@ angular.module('app', [
 			$scope.user = user;
 		}
 	}
-
 	$scope.logout = function () {
 		Auth.logout();
 		$scope.user = null;
 	}
-
 	// If user is already logged, lets try to authenticate this user
 	Auth.login($scope.loginCallback);
+
+
+	// Check if there is an message or error cookie to show
+	if ($cookies.message) {
+		$scope.showMessage($cookies.message);
+		delete $cookies.message;
+	};
+	if ($cookies.error) {
+		$scope.showError($cookies.error);
+		delete $cookies.error;
+	};
+
+	
 
 	// Lets get all channels
 	$http({method: 'GET', url: '/channel'}).
@@ -81,8 +102,9 @@ angular.module('app', [
 	    		$scope.showError(data)
 	    		return
 	    	}
-	    	$scope.newError("Ocorreu um erro ao se buscar a lista de canais.")
+	    	$scope.showError("Ocorreu um erro ao se buscar a lista de canais.")
     });
+
 
 }])
 
