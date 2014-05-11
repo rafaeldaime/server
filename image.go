@@ -67,8 +67,10 @@ func GetImage(db DB, imageUrl string) (*Image, error) {
 		widthRatio := float32(originalWidht) / float32(newWidth)    // Width ratio
 		heightRatio := float32(originalHeight) / float32(newHeight) // Height ratio
 
+		// log.Printf("Trying to save img size %d, widthRatio: %f, heightRatio: %f\n", size, widthRatio, heightRatio)
+
 		// We will resize and crop just images bigger than thumbnail in both dimensions
-		if widthRatio >= 1 && heightRatio >= 1 {
+		if size == "small" || (widthRatio >= 1 && heightRatio >= 1) {
 			maxSize = size
 			// Below the values to the image be resized after be cropped
 			// If resized width or height == 0, so the proportion will be conserved
@@ -94,20 +96,39 @@ func GetImage(db DB, imageUrl string) (*Image, error) {
 				}
 			}()
 
-			// Downscales an image preserving its aspect ratio to the maximum dimensions
-			resizedImage := resize.Resize(uint(resizedWidth), uint(resizedHeight), originalImg, resize.Lanczos3)
+			// If the image is bigger in both directions
+			if widthRatio >= 1 && heightRatio >= 1 {
+				// Downscales an image preserving its aspect ratio to the maximum dimensions
+				resizedImage := resize.Resize(uint(resizedWidth), uint(resizedHeight), originalImg, resize.Lanczos3)
 
-			// If image still bigger, lets crop it to the right size
-			croppedImg, err := cutter.Crop(resizedImage, cutter.Config{
-				Width:  newWidth,
-				Height: newHeight,
-				Mode:   cutter.Centered,
-			})
-			if err != nil {
-				return nil, err
+				// If image still bigger, lets crop it to the right size
+				croppedImg, err := cutter.Crop(resizedImage, cutter.Config{
+					Width:  newWidth,
+					Height: newHeight,
+					Mode:   cutter.Centered,
+				})
+				if err != nil {
+					return nil, err
+				}
+
+				png.Encode(fo, croppedImg)
+
+			} else {
+				// If the image isn't bigger in both directions
+				// We will enter here just if its the small size image
+
+				// If image still bigger, lets crop it to the right size
+				croppedImg, err := cutter.Crop(originalImg, cutter.Config{
+					Width:  newWidth,
+					Height: newHeight,
+					Mode:   cutter.Centered,
+				})
+				if err != nil {
+					return nil, err
+				}
+
+				png.Encode(fo, croppedImg)
 			}
-
-			png.Encode(fo, croppedImg)
 
 			log.Printf("Saving the image size %s\n", size)
 		}

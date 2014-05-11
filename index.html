@@ -80,6 +80,8 @@
             Adicionar o conteudo
           </button>
 
+          <input type="reset" ng-if="newcontent.contentid" ng-click="clearNewContent()" value="Adicionar outro">
+
           <p ng-show="newcontent.channelid == '' && (newcontent.fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
             Insira a URL e o Canal do conteudo que deseja nos enviar.
           </p>

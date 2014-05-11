@@ -35,6 +35,13 @@ app.controller('AppController', ['$scope', '$http', '$timeout', '$cookies', 'Aut
 		fullurl: "http://",
 	}
 
+	$scope.clearNewContent = function () {
+		$scope.newcontent = {
+			channelid: "",
+			fullurl: "http://",
+		}
+	}
+
 
 	$scope.newMessage = function (message) {
 		$scope.message = message;

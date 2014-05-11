@@ -30,8 +30,6 @@ func GetContent(newContent *Content) (*Content, string, error) {
 
 	imageUrl := ""
 
-	openTitle := false // Indicates if title's tag has open
-
 	// This function create a Tokenizer for an io.Reader, obs. HTML should be UTF-8
 	z := html.NewTokenizer(resp.Body)
 	for {
@@ -41,18 +39,32 @@ func GetContent(newContent *Content) (*Content, string, error) {
 			if z.Err() == io.EOF { // EVERTHINGS WORKS WELL!
 				break
 			}
-			// Ops, we've got something wrong
+			// Ops, we've got something wrong, it isn't an EOF token
 			return nil, "", errors.New(
 				fmt.Sprintf("Desculpe, mas ocorreu um erro ao extrair as tags HTML da pagina passada. %s.", z.Err()))
 		}
 
 		switch tokenType {
-		case html.SelfClosingTagToken:
+		case html.StartTagToken, html.SelfClosingTagToken:
+
 			token := z.Token()
-			if token.Data == "meta" {
-				// Extracting this meta data information
+			// Check if it is an title tag opennig, it's the fastest way to compare bytes
+			if token.Data == "title" {
+				// log.Printf("TAG: '%v'\n", token.Data)
+				nextTokenType := z.Next()
+				if nextTokenType == html.TextToken {
+					nextToken := z.Token()
+					newContent.Title = strings.TrimSpace(nextToken.Data)
+					// log.Println("<title> = " + newContent.Title)
+				}
+
+			} else if token.Data == "meta" {
 				key := ""
 				value := ""
+
+				// log.Printf("NewMeta: %s : ", token.String())
+
+				// Extracting this meta data information
 				for _, attr := range token.Attr {
 					switch attr.Key {
 					case "property", "name":
@@ -63,39 +75,33 @@ func GetContent(newContent *Content) (*Content, string, error) {
 				}
 
 				switch key {
-				case "og:title", "twitter:title":
+				case "title", "og:title", "twitter:title":
 					if strings.TrimSpace(value) != "" {
 						newContent.Title = strings.TrimSpace(value)
+						// log.Printf("Title: %s\n", strings.TrimSpace(value))
+					}
+
+				case "og:site_name", "twitter:domain":
+					if strings.TrimSpace(value) != "" {
+						// newContent.Title = strings.TrimSpace(value)
+						log.Printf("Site Name: %s\n", strings.TrimSpace(value))
 					}
 
 				case "description", "og:description", "twitter:description":
 					if strings.TrimSpace(value) != "" {
 						newContent.Description = strings.TrimSpace(value)
+						// log.Printf("Description: %s\n", strings.TrimSpace(value))
 					}
-				case "og:image", "twitter:image":
+				case "og:image", "twitter:image", "twitter:image:src":
 					if strings.TrimSpace(value) != "" {
 						imageUrl = strings.TrimSpace(value)
+						// log.Printf("Image: %s\n", strings.TrimSpace(value))
 					}
-					// case "og:url", "twitter:url":
-					// 	fullUrl = value
-				}
-
-			}
-		case html.TextToken:
-			// If title aren't set by any meta tags, so let's use the page's title
-			if openTitle && newContent.Title == "" {
-				token := z.Token()
-				newContent.Title = strings.TrimSpace(token.Data)
-				log.Println("FIADAPUTAAAAAAAAAAAAAAAAAAAAA" + strings.TrimSpace(token.Data) + "!!!")
-			}
-		case html.StartTagToken, html.EndTagToken:
-			tn, _ := z.TagName()
-			// Check if it is an title tag opennig, it's the fastest way to compare bytes
-			if len(tn) == 5 && tn[0] == 't' && tn[1] == 'i' && tn[2] == 't' && tn[3] == 'l' && tn[4] == 'e' {
-				if tokenType == html.StartTagToken {
-					openTitle = true
-				} else {
-					openTitle = false
+				case "og:url", "twitter:url":
+					if strings.TrimSpace(value) != "" {
+						newContent.FullUrl = strings.TrimSpace(value)
+						// log.Printf("Url: %s\n", strings.TrimSpace(value))
+					}
 				}
 			}
 		}
@@ -112,6 +118,10 @@ func GetContent(newContent *Content) (*Content, string, error) {
 		newContent.Title, newContent.Description, imageUrl)
 
 	return newContent, imageUrl, nil
+}
+
+func consumeTag(content *Content, key, value string) {
+
 }
 
 func CreateContent(db DB, user *User, url *Url, img *Image, newContent *Content) (*Content, error) {
@@ -167,7 +177,6 @@ func CreateContent(db DB, user *User, url *Url, img *Image, newContent *Content)
 		content.MaxSize = img.MaxSize
 	}
 
-	// NOT SAVING JUST FOR DEBUGGING
 	err = db.Insert(content)
 
 	if err != nil {
