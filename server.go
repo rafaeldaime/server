@@ -69,6 +69,8 @@ func init() {
 
 	r.Get("/channel", getAllChannels)
 
+	r.Post("/content", createNewContent)
+
 	r.NotFound(func(r render.Render, req *http.Request) {
 
 		r.JSON(http.StatusNotFound, NewError(ErrorCodeDefault, fmt.Sprintf(

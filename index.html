@@ -15,6 +15,12 @@
 
   </head>
   <body ng-controller="AppController">
+
+    <!--[if lt IE 7]>
+    <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+    <![endif]-->
+
+
   <!-- My main content will be hidden until all content has been loaded -->
   <div ng-cloak class="ng-cloak">
 
@@ -28,12 +34,12 @@
 
     <div ng-show="message" class="message">
       <h3>...</h3>
-      <div ng-click="error=null">X</div>
+      <div ng-click="message=null">X</div>
       <span ng-bind="message"></span>
     </div>
 
     <span ng-hide="user">
-      <img src="img/pic/default.png">
+      <img src="pic/default.png">
       Anonimo
       <a href="/login">login</a>.
     </span>
@@ -54,9 +60,67 @@
       </li>
     </ul>
 
-    <!--[if lt IE 7]>
-    <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
-    <![endif]-->
+
+    <div ng-show="user">
+      <h3>Adicione um conteudo</h3>
+      <form name="createContentForm" ng-submit="createContent()" novalidate>
+        <div ng-class="{'has-error': createContentForm.url.$invalid && !createContentForm.url.$pristine }">
+
+          Canal:
+          <select name="channelid" ng-model="newcontent.channelid" required>
+            <option ng-repeat="channel in channels" value="{{ channel.channelid }}">
+              {{ channel.channelname }}
+            </option>
+          </select >
+
+          URL:
+          <input type="text" name="url" ng-model="newcontent.fullurl" ng-minlength="3" ng-maxlength="255" ng-disabled="{{ $scope.newcontent.contentid }}" required/>
+
+          <button ng-disabled="createContentForm.url.$pristine || createContentForm.channelid.$pristine || createContentForm.$invalid">
+            Adicionar o conteudo
+          </button>
+
+          <p ng-show="newcontent.channelid == '' && (newcontent.fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
+            Insira a URL e o Canal do conteudo que deseja nos enviar.
+          </p>
+          <p ng-show="newcontent.channelid == '' && (newcontent.fullurl != 'http://' && !createContentForm.url.$error.required)" class="help-block">
+            Escolha o Canal que deseja que o conteudo apareca.
+          </p>
+          <p ng-show="newcontent.channelid != '' && (newcontent.fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
+            Digite a URL do conteudo que deseja enviar.
+          </p>
+          <p ng-show="newcontent.channelid != '' && (newcontent.fullurl != 'http://' && !createContentForm.url.$error.required)" class="help-block">
+            Quando estiver pronto, clique no botao para enviar o conteudo.
+          </p>
+        </div>
+        
+      </form>
+
+      <div ng-if="newcontent.contentid">
+        <img ng-if="!(newcontent | contenthasimage)" ng-src="{{ 'img/default-small.png' }}"><br>
+        <img ng-if="newcontent | contenthasimage:'small'" ng-src="{{ newcontent | contentimagesrc:'small' }}"><br>
+        <img ng-if="newcontent | contenthasimage:'medium'" ng-src="{{ newcontent | contentimagesrc:'medium' }}"><br>
+        <img ng-if="newcontent | contenthasimage:'large'" ng-src="{{ newcontent | contentimagesrc:'large' }}"><br>
+        <h2><a ng-bind="channels[newcontent.contentid].title" ng-href="#/canal/{{ newcontent.slug }}"></a></h3>
+        <h3><a ng-bind="newcontent.title" ng-href="#/conteudo/{{ newcontent.slug }}"></a></h3>
+        <p ng-bind="newcontent.description"></p>
+      </div>
+
+    </div>
+
+
+    <br/>
+    <br/>
+    <br/>
+
+    <div >
+      NEW CONTENT:"<span ng-bind="newcontent.fullurl"></span>"
+    </div>
+
+
+<br/>
+
+
 
     <div ng-view></div>
 
@@ -64,8 +128,6 @@
     
 
 
-
-    <iframe class="auth" ng-show="auth.show" ng-src="{{ auth.src }}" auth></iframe>
   
 
   </div> <!-- End of my main content -->

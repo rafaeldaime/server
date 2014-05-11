@@ -12,7 +12,17 @@
 *.pem
 
 # Ignore public pic's directory
-/public/img/pic/*
+/public/pic/*
 
 # But not ignore the default pic
-!/public/img/pic/default.png
+!/public/pic/default.png
+
+# Ignore public img's directory
+/public/img/*
+
+# But not ignore the default imgs
+!/public/img/default-small.png
+!/public/img/default-medium.png
+!/public/img/default-large.png
+
+

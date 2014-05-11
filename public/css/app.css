@@ -19,7 +19,7 @@ body {
     background-repeat: no-repeat;
     border-radius: 50%;
     opacity: .7;
-    background: url("/img/spinner.gif");
+    background: url("/spinner.gif");
     z-index: 998;
 }
 
@@ -63,13 +63,9 @@ body {
 }
 
 
-.auth {
-	position: absolute;
-	width: 300px;
-	height: 300px;
-	left: 50%;
-	top: 50%;
-	margin-left: -150px;
-	margin-top: -150px;
-	background-color: #FFF;
+
+
+
+.channels li {
+    display: inline;
 }

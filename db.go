@@ -48,7 +48,8 @@ func init() {
 
 	// construct a gorp DbMap
 	dbmap := gorp.DbMap{Db: dbopen, Dialect: dialect}
-	dbmap.TraceOn("[gorp]", log.New(os.Stdout, "[DB]", log.Lmicroseconds))
+
+	log.Println("Database connected!")
 
 	// Adding schemes to my ORM
 	dbmap.AddTableWithName(User{}, "user").SetKeys(false, "userid")
@@ -56,20 +57,32 @@ func init() {
 	dbmap.AddTableWithName(Pic{}, "pic").SetKeys(false, "picid")
 	dbmap.AddTableWithName(Token{}, "token").SetKeys(false, "tokenid")
 	dbmap.AddTableWithName(Channel{}, "channel").SetKeys(false, "channelid")
+	dbmap.AddTableWithName(Image{}, "image").SetKeys(false, "imageid")
+	dbmap.AddTableWithName(Url{}, "url").SetKeys(false, "urlid")
+	dbmap.AddTableWithName(Content{}, "content").SetKeys(false, "contentid")
 
 	// Adding to local vairable
 	db = &dbmap
 
-	checkInsertDefaultPic(db)
+	log.Println("Start routine to create the default values of our datas...")
 
-	checkInsertChannels(db)
+	checkAndCreateDefaultPic(db)
 
-	log.Println("Database connected!")
+	checkAndCreateDefaultImage(db)
+
+	checkAndCreateAdminUser(db)
+
+	checkAndCreateChannels(db)
+
+	log.Println("All default values has been created.")
+
+	dbmap.TraceOn("[SQL]", log.New(os.Stdout, "[DB]", log.Lmicroseconds))
+
 }
 
-func checkInsertDefaultPic(db DB) {
+func checkAndCreateDefaultPic(db DB) {
 	// Adding default value to pic
-	// Never exclude pic default.png !
+	// pic/default.png !
 	count, err := db.SelectInt("select count(*) from pic where picid=?", "default")
 	if err == nil {
 		if count == 0 {
@@ -81,6 +94,8 @@ func checkInsertDefaultPic(db DB) {
 			err := db.Insert(pic)
 			if err != nil {
 				log.Printf("Error creating default pic. %s\n", err)
+			} else {
+				log.Println("Default pic created!")
 			}
 		}
 	} else {
@@ -88,7 +103,60 @@ func checkInsertDefaultPic(db DB) {
 	}
 }
 
-func checkInsertChannels(db DB) {
+func checkAndCreateDefaultImage(db DB) {
+	// Adding default value to image
+	// img/default-small.png
+	// img/default-medium.png
+	// img/default-large.png
+	count, err := db.SelectInt("select count(*) from image where imageid=?", "default")
+	if err == nil {
+		if count == 0 {
+			image := &Image{
+				ImageId:  "default",
+				Creation: time.Now(),
+				Deleted:  false,
+			}
+			err := db.Insert(image)
+			if err != nil {
+				log.Printf("Error creating default image. %s\n", err)
+			} else {
+				log.Printf("Default image created!\n")
+			}
+		}
+	} else {
+		log.Printf("Error searching for default image. %s\n", err)
+	}
+}
+
+func checkAndCreateAdminUser(db DB) {
+	count, err := db.SelectInt("select count(*) from user where userid=?", "admin")
+	if err == nil {
+		if count == 0 {
+			admin := &User{
+				UserId:     "admin",
+				UserName:   "Admin",
+				PicId:      "default",
+				FullName:   "Admin",
+				LikeCount:  0,
+				Creation:   time.Now(),
+				LastUpdate: time.Now(),
+				Deleted:    false,
+				Admin:      true,
+			}
+
+			err := db.Insert(admin)
+			if err != nil {
+				log.Printf("Error creating the admin user. %s\n", err)
+			} else {
+				log.Println("User admin created!")
+			}
+		}
+	} else {
+		log.Printf("Error searching for user admin. %s\n", err)
+	}
+}
+
+func checkAndCreateChannels(db DB) {
 	for i, channelName := range channelList {
 		channelSlug := slugList[i]
 		count, err := db.SelectInt("select count(*) from channel where channelslug=?", channelSlug)
@@ -102,7 +170,9 @@ func checkInsertChannels(db DB) {
 				}
 				err := db.Insert(channel)
 				if err != nil {
-					log.Printf("Error when inserting the channel. %v\n", channel)
+					log.Printf("Error when creating the channel %s. %s\n", channel.ChannelName, err)
+				} else {
+					log.Printf("Channel %s created!\n", channel.ChannelName)
 				}
 			}
 		} else {
@@ -123,6 +193,7 @@ var channelList = []string{
 	"Curiosidades",
 	"Downloads",
 	"Educação",
+	"Entretenimento",
 	"Esporte",
 	"Eventos",
 	"Família",
@@ -158,6 +229,7 @@ var slugList = []string{
 	"Curiosidades",
 	"Downloads",
 	"Educacao",
+	"Entretenimento",
 	"Esporte",
 	"Eventos",
 	"Familia",

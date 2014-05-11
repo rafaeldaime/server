@@ -249,39 +249,39 @@ func extractProfile(token *oauth.Token, data *interface{}) (*Profile, error) {
 	// and we cast it to an map[string] interface
 	p := (*data).(map[string]interface{})
 
-	profile := new(Profile)
-
-	// My Facebook profile
-	profile.ProfileId = p["id"].(string)
-	// UserId is not inserted know, but is required
-	profile.UserName = p["username"].(string)
-	profile.Email = p["email"].(string)
-	profile.FullName = p["name"].(string)
-	profile.Gender = p["gender"].(string)
-	profile.ProfileUrl = p["link"].(string)
-	profile.Language = p["locale"].(string)
-	profile.Verified = p["verified"].(bool)
-	profile.FirstName = p["first_name"].(string)
-	profile.LastName = p["last_name"].(string)
-
+	// Extracting updated_time from Facebook return
 	timeLayout := "2006-01-02T15:04:05+0000"
 	updateTime, err := time.Parse(timeLayout, p["updated_time"].(string))
 	if err != nil {
 		return nil, err
 	}
-	profile.SourceUpdate = updateTime
-
-	profile.AccessToken = token.AccessToken
-	profile.RefreshToken = token.RefreshToken
-	profile.Scope = config.Scope // A package config variable
-	profile.TokenExpiry = token.Expiry
-	// Creation and LastUpdate will be auto-added by database
+	// The Facebook profile
+	profile := &Profile{
+		ProfileId:    p["id"].(string),
+		UserId:       "", // UserId is not inserted know, but is required
+		UserName:     p["username"].(string),
+		Email:        p["email"].(string),
+		FullName:     p["name"].(string),
+		Gender:       p["gender"].(string),
+		ProfileUrl:   p["link"].(string),
+		Language:     p["locale"].(string),
+		Verified:     p["verified"].(bool),
+		FirstName:    p["first_name"].(string),
+		LastName:     p["last_name"].(string),
+		SourceUpdate: updateTime,
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		Scope:        config.Scope, // A package config variable
+		TokenExpiry:  token.Expiry,
+		Creation:     time.Now(),
+		LastUpdate:   time.Now(),
+	}
 
 	return profile, nil
 }
 
 // Take a http client with a transport pre-configured with the user credentials
-// and return de name of the pic saved in public/pics/
+// and return the Pic saved in public/img/pic/ and stored in DB
 func getPic(db DB, client *http.Client) (*Pic, error) {
 	// OK WE HAVE THE PROFILE, BUT WE DON'T HAVE USER'S PICTURE
 	// LETS TAKE IT
@@ -310,7 +310,7 @@ func getPic(db DB, client *http.Client) (*Pic, error) {
 		return nil, err
 	}
 
-	fo, err := os.Create("public/img/pic/" + picId + ".png")
+	fo, err := os.Create("public/pic/" + picId + ".png")
 	if err != nil {
 		return nil, err
 	}
@@ -324,10 +324,11 @@ func getPic(db DB, client *http.Client) (*Pic, error) {
 
 	fo.Write(img)
 
-	pic := new(Pic)
-	pic.PicId = picId
-	pic.Creation = time.Now()
-	pic.Deleted = false // Lol...
+	pic := &Pic{
+		PicId:    picId,
+		Creation: time.Now(),
+		Deleted:  false,
+	}
 
 	err = db.Insert(pic)
 	if err != nil {
@@ -399,13 +400,17 @@ func newUser(db DB, profile *Profile) (*User, error) {
 		return nil, err
 	}
 
-	user := new(User)
-	user.UserId = userId
-	user.PicId = "default" // Reference to default pic
-	user.FullName = profile.FullName
-	user.UserName = userName
-	user.Creation = time.Now()
-	user.LastUpdate = time.Now()
+	user := &User{
+		UserId:     userId,
+		UserName:   userName,
+		PicId:      "default", // Reference to default pic
+		FullName:   profile.FullName,
+		LikeCount:  0,
+		Creation:   time.Now(),
+		LastUpdate: time.Now(),
+		Deleted:    false,
+		Admin:      false,
+	}
 
 	err = db.Insert(user)
 	if err != nil {

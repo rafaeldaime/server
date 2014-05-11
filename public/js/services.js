@@ -10,75 +10,62 @@
 
 // Demonstrate how to register services
 // In this case it is a simple value service.
-angular.module('app.services', [])
-
-.value('version', '0.1')
-
-.factory('helloWorldFromFactory', function() {
-	return {
-		sayHello: function() {
-			return "Hello, World!"
-		}
-	}
-})
+var services = angular.module('app.services', ['ngResource']);
 
 
 
-.factory('Auth', ['$cookies', '$http', function ($cookies, $http) {
+
+services.factory('Channels', function ($resource) {
+    return $resource('/channel', {}, {
+        get: { method: 'GET', isArray: true }
+    })
+});
+
+
+
+
+// Here we will pass the URL to a new content be created
+services.factory('Contents', function ($resource) {
+    return $resource('/content', {}, {
+        create: {method: 'POST'}
+    })
+});
+
+
+
+
+
+
+
+
+
+services.factory('Auth', ['$cookies', '$http', '$resource', function ($cookies, $http, $resource) {
     return {
-    	// Return to callback user, or null if credentials error
-        login: function (callback) {
-        	var credentials = $cookies.credentials;
-        	if (!credentials) {
-        		// User not already logged but there is no error
+    	// Get the user in this session and return (user, error)
+        session: function (callback) {
+        	var that = this;
+
+        	if (!$cookies.credentials) { // Nothing in this session
         		callback(null, null);
         		return
         	}
-        	this.setCredentials(credentials);
-        	var clearCredentials = this.clearCredentials;
-        	$http({method: 'GET', url: '/me'}).
-			    success(function(data, status, headers, config) {
-			    	// OK! Return user
-			    	// For some reason, the JSON returned was decodded
-			    	if (data.error) {
-			    		callback(null, data);
-			    		return
-			    	}
 
-		        	callback(data);
-			    }).
-			    error(function(data, status, headers, config) {
-			    	if (data.error) { // Returned an APIError
-			    		callback(null, data);
-			    		clearCredentials();
-			    		return
-			    	}
+        	// Set the Authorization header saved in this session
+        	$http.defaults.headers.common.Authorization = $cookies.credentials;
 
-	        		error = { // Creationg a new error object to be returned
-	        			error: {
-		        			code: 1, // Default error code
-		        			message: "Ocorreu um erro ao tentar te identificar."
-		        		}
-	        		}
-	        		callback(null, error)
-		    		clearCredentials();
-			    	
-		    });
+        	$resource('/me').get()
+        		.$promise.then(function (user) {
+        			callback(user, null);
+        		}, function (httpResponse) {
+		            // Return the error object in response to the caller
+		    		callback(null, httpResponse.data);
+			    	that.logout();
+        		})
         },
         logout: function () {
-            this.clearCredentials();
-        },
-        setCredentials: function (credentials) {
-            $http.defaults.headers.common.Authorization = credentials;
-            $cookies.credentials = credentials;
-        },
-        clearCredentials: function () {
             document.execCommand("ClearAuthenticationCache");
             delete $cookies.credentials;
             $http.defaults.headers.common.Authorization = "";
         }
     };
-}])
-
-
-;
+}]);
