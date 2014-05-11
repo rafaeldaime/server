@@ -74,7 +74,7 @@
           </select >
 
           URL:
-          <input type="text" name="url" ng-model="newcontent.fullurl" ng-minlength="3" ng-maxlength="255" ng-disabled="{{ $scope.newcontent.contentid }}" required/>
+          <input type="text" name="url" ng-model="newcontent.fullurl" ng-minlength="3" ng-maxlength="255" ng-disabled="newcontent.contentid" required/>
 
           <button ng-disabled="createContentForm.url.$pristine || createContentForm.channelid.$pristine || createContentForm.$invalid">
             Adicionar o conteudo

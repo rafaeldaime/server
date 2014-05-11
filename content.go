@@ -28,9 +28,6 @@ func GetContent(newContent *Content) (*Content, string, error) {
 			fmt.Sprintf("Desculpe, mas a pagina passada respondeu indevidamente. O Status Code recebido foi: %d.", resp.StatusCode))
 	}
 
-	//bs, _ := ioutil.ReadAll(resp.Body)
-	//log.Printf("\n\nBODY: %s \n\n", bs)
-
 	imageUrl := ""
 
 	openTitle := false // Indicates if title's tag has open
@@ -67,18 +64,15 @@ func GetContent(newContent *Content) (*Content, string, error) {
 
 				switch key {
 				case "og:title", "twitter:title":
-					log.Println("Title:" + strings.TrimSpace(value) + "....")
 					if strings.TrimSpace(value) != "" {
 						newContent.Title = strings.TrimSpace(value)
 					}
 
 				case "description", "og:description", "twitter:description":
-					log.Println("Description:" + strings.TrimSpace(value) + "....")
 					if strings.TrimSpace(value) != "" {
 						newContent.Description = strings.TrimSpace(value)
 					}
 				case "og:image", "twitter:image":
-					log.Println("imageUrl:" + strings.TrimSpace(value) + "....")
 					if strings.TrimSpace(value) != "" {
 						imageUrl = strings.TrimSpace(value)
 					}
@@ -174,7 +168,7 @@ func CreateContent(db DB, user *User, url *Url, img *Image, newContent *Content)
 	}
 
 	// NOT SAVING JUST FOR DEBUGGING
-	//err = db.Insert(content)
+	err = db.Insert(content)
 
 	if err != nil {
 		return nil, err

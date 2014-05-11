@@ -23,8 +23,6 @@ type dimension struct {
 // Take the site image and save in our server
 func GetImage(db DB, imageUrl string) (*Image, error) {
 
-	log.Printf("Saving the image %s\n", imageUrl)
-
 	res, err := http.Get(imageUrl)
 	if err != nil {
 		return nil, err
@@ -55,11 +53,10 @@ func GetImage(db DB, imageUrl string) (*Image, error) {
 	originalHeight := originalImg.Bounds().Dy()
 	maxSize := ""
 
-	log.Printf("\nPreparing to save de image %dx%d\n\n", originalWidht, originalHeight)
+	log.Printf("\nPreparing to save de image %dx%d\n", originalWidht, originalHeight)
 
 	// We will save 3 resized images
 	sizes := [...]string{"small", "medium", "large"}
-	// dimensions = {{233, 127}, {312, 170}, {661, 360}}
 	dimensions := [...]dimension{{233, 127}, {312, 170}, {661, 360}}
 
 	// We will save the Thumbnails just if the original image
@@ -69,13 +66,9 @@ func GetImage(db DB, imageUrl string) (*Image, error) {
 		newHeight := dimensions[index].Height
 		widthRatio := float32(originalWidht) / float32(newWidth)    // Width ratio
 		heightRatio := float32(originalHeight) / float32(newHeight) // Height ratio
-		// Neither width or height can be smaller than the thumbnail
-
-		log.Printf("\nDEBUG: %dx%d = %dx%d\n\n", newWidth, newHeight, widthRatio, heightRatio)
 
 		// We will resize and crop just images bigger than thumbnail in both dimensions
 		if widthRatio >= 1 && heightRatio >= 1 {
-			log.Println("FIADAPUTA")
 			maxSize = size
 			// Below the values to the image be resized after be cropped
 			// If resized width or height == 0, so the proportion will be conserved

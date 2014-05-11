@@ -67,6 +67,7 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 	}
 
 	if len(contents) > 0 {
+		contents[0].FullUrl = newContent.FullUrl
 		r.JSON(http.StatusOK, contents[0])
 		return
 	}
@@ -128,7 +129,7 @@ func saveUrl(db DB, user *User, fullUrl string) (*Url, error) {
 	}
 
 	// NOT SAVING THE URL JUST FOR DEBBUGING!!!
-	//err = db.Insert(url)
+	err = db.Insert(url)
 	if err != nil {
 		return nil, err
 	}
