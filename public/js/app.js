@@ -14,33 +14,21 @@ var app = angular.module('app', [
 
 app.config(['$routeProvider', function($routeProvider) {
   $routeProvider.when('/', {templateUrl: 'view/center.html', controller: 'CenterController'});
-  $routeProvider.when('/canal/:channelslug', {templateUrl: 'view/channel.html', controller: 'LoginController'});
+  $routeProvider.when('/canal/:channelslug', {templateUrl: 'view/channel.html', controller: 'CenterController'});
 
-  $routeProvider.when('/view2', {templateUrl: 'view/partial2.html', controller: 'MyCtrl2'});
   $routeProvider.otherwise({redirectTo: '/'});
 }]);
 
 app.run(function run () {
 });
 
-app.controller('AppController', ['$scope', '$http', '$timeout', '$cookies', 'Auth', 'Channels', 'Contents', function($scope, $http, $timeout, $cookies, Auth, Channels, Contents) {
+app.controller('AppController', ['$scope', '$http', '$timeout', '$cookies', 'Auth', 'Channels', function($scope, $http, $timeout, $cookies, Auth, Channels) {
 	$scope.error = null;
 	$scope.message = null;
 	$scope.spinner = false;
 
 	$scope.user = null;
 	$scope.channels = null;
-	$scope.newcontent = {
-		channelid: "",
-		fullurl: "http://",
-	}
-
-	$scope.clearNewContent = function () {
-		$scope.newcontent = {
-			channelid: "",
-			fullurl: "http://",
-		}
-	}
 
 
 	$scope.newMessage = function (message) {
@@ -112,22 +100,6 @@ app.controller('AppController', ['$scope', '$http', '$timeout', '$cookies', 'Aut
 			$scope.newError(httpResponse.data);
 		});
 
-	$scope.createContent = function () {
-		$scope.spinner = true;
-		var newcontent = {
-			fullurl: $scope.newcontent.fullurl,
-			channelid: $scope.newcontent.channelid
-		}
-		Contents.create(newcontent)
-			.$promise.then(function(content) {
-				$scope.newcontent = content;
-				$scope.spinner = false;
-				$scope.newMessage = angular.toJson(content);
-			},function (httpResponse) {
-				$scope.newError(httpResponse.data);
-				$scope.spinner = false;
-			});
-	}
 
 
 }]);

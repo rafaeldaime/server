@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"code.google.com/p/go.net/html"
+	"code.google.com/p/go.net/html/charset"
 	"github.com/dchest/uniuri" // give us random URIs
 	"github.com/extemporalgenome/slug"
 )
@@ -28,10 +29,16 @@ func GetContent(newContent *Content) (*Content, string, error) {
 			fmt.Sprintf("Desculpe, mas a pagina passada respondeu indevidamente. O Status Code recebido foi: %d.", resp.StatusCode))
 	}
 
+	reader, err := charset.NewReader(resp.Body, resp.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, "", errors.New(
+			fmt.Sprintf("Erro ao decodificar o charset da pagina. %s.", err))
+	}
+
 	imageUrl := ""
 
 	// This function create a Tokenizer for an io.Reader, obs. HTML should be UTF-8
-	z := html.NewTokenizer(resp.Body)
+	z := html.NewTokenizer(reader)
 	for {
 		tokenType := z.Next()
 
@@ -75,6 +82,7 @@ func GetContent(newContent *Content) (*Content, string, error) {
 				}
 
 				switch key {
+
 				case "title", "og:title", "twitter:title":
 					if strings.TrimSpace(value) != "" {
 						newContent.Title = strings.TrimSpace(value)

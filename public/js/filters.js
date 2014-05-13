@@ -16,6 +16,9 @@ filters.filter('userpicsrc', function() {
 
 filters.filter('contenthasimage', function() {
 	return function(content, size) {
+		if (!content) {
+			return false;
+		}
 		// If we want to know just if there is or there isn't an image in this content
 		if (!size) {
 			if (content.maxsize == '') {
@@ -40,6 +43,9 @@ filters.filter('contenthasimage', function() {
 
 filters.filter('contentimagesrc', function() {
 	return function(content, size) {
+		if (!content) {
+			return '';
+		}
 		// Check if there is large image for this content, or return default large image
 		if (size == 'large' && (content.maxsize == 'small' || content.maxsize == 'medium')) {
 			return "img/default-" + size + ".png";
@@ -49,5 +55,12 @@ filters.filter('contentimagesrc', function() {
 			return "img/default-" + size + ".png";
 		};
 		return "img/" + content.imageid + "-" + size + ".png";
+	};
+});
+
+
+filters.filter('json', function() {
+	return function(content) {
+		return angular.toJson(content, true)
 	};
 });

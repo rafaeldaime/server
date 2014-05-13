@@ -22,7 +22,7 @@
 
 
   <!-- My main content will be hidden until all content has been loaded -->
-  <div ng-cloak class="ng-cloak">
+  <div class="content-main" ng-cloak class="ng-cloak">
 
     <div ng-show="spinner" class="spinner"></div>
 
@@ -49,10 +49,8 @@
       <a href="#" ng-click="logout()">logout</a>
     </span>
 
-    <ul class="menu">
-      <li><a href="#/">Principal</a></li>
-      <li><a href="#/view2">View2</a></li>
-    </ul>
+
+
 
     <ul class="channels" ng-show="channels">
       <li ng-repeat="channel in channels">
@@ -61,74 +59,125 @@
     </ul>
 
 
-    <div ng-show="user">
-      <h3>Adicione um conteudo</h3>
+    <!-- ContentController to add/edit contents added by user -->
+    <div ng-controller="ContentController" ng-show="user">
+
+      <h3>Adicione conteudo da Internet</h3>
       <form name="createContentForm" ng-submit="createContent()" novalidate>
-        <div ng-class="{'has-error': createContentForm.url.$invalid && !createContentForm.url.$pristine }">
 
           Canal:
-          <select name="channelid" ng-model="newcontent.channelid" required>
+          <select name="channelid" ng-model="channelid" required>
             <option ng-repeat="channel in channels" value="{{ channel.channelid }}">
               {{ channel.channelname }}
             </option>
           </select >
 
           URL:
-          <input type="text" name="url" ng-model="newcontent.fullurl" ng-minlength="3" ng-maxlength="255" ng-disabled="newcontent.contentid" required/>
+          <input type="text" name="url" ng-model="fullurl" ng-change="checkFullUrl()" ng-disabled="usercontent" required ng-click="debug()" />
 
-          <button ng-disabled="createContentForm.url.$pristine || createContentForm.channelid.$pristine || createContentForm.$invalid">
-            Adicionar o conteudo
+          <button ng-hide="usercontent" ng-disabled="createContentForm.$invalid">
+            Adicionar
           </button>
 
-          <input type="reset" ng-if="newcontent.contentid" ng-click="clearNewContent()" value="Adicionar outro">
+          <input type="reset" ng-show="usercontent" ng-click="clearNewContent()" value="Adicionar outro"/>
 
-          <p ng-show="newcontent.channelid == '' && (newcontent.fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
+          <p ng-show="!usercontent && channelid == '' && (fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
             Insira a URL e o Canal do conteudo que deseja nos enviar.
           </p>
-          <p ng-show="newcontent.channelid == '' && (newcontent.fullurl != 'http://' && !createContentForm.url.$error.required)" class="help-block">
+          <p ng-show="!usercontent && channelid == '' && (fullurl != 'http://' && !createContentForm.url.$error.required)" class="help-block">
             Escolha o Canal que deseja que o conteudo apareca.
           </p>
-          <p ng-show="newcontent.channelid != '' && (newcontent.fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
+          <p ng-show="!usercontent && channelid != '' && (fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
             Digite a URL do conteudo que deseja enviar.
           </p>
-          <p ng-show="newcontent.channelid != '' && (newcontent.fullurl != 'http://' && !createContentForm.url.$error.required)" class="help-block">
+          <p ng-show="!usercontent && channelid != '' && (fullurl != 'http://' && !createContentForm.url.$error.required)" class="help-block">
             Quando estiver pronto, clique no botao para enviar o conteudo.
           </p>
-        </div>
+          <p ng-show="usercontent" class="help-block">
+            Agora voce pode ver e editar as informacoes do seu novo conteudo.
+          </p>
         
       </form>
 
-      <div ng-if="newcontent.contentid">
-        <img ng-if="!(newcontent | contenthasimage)" ng-src="{{ 'img/default-small.png' }}"><br>
-        <img ng-if="newcontent | contenthasimage:'small'" ng-src="{{ newcontent | contentimagesrc:'small' }}"><br>
-        <img ng-if="newcontent | contenthasimage:'medium'" ng-src="{{ newcontent | contentimagesrc:'medium' }}"><br>
-        <img ng-if="newcontent | contenthasimage:'large'" ng-src="{{ newcontent | contentimagesrc:'large' }}"><br>
-        <h2><a ng-bind="channels[newcontent.contentid].title" ng-href="#/canal/{{ newcontent.slug }}"></a></h3>
-        <h3><a ng-bind="newcontent.title" ng-href="#/conteudo/{{ newcontent.slug }}"></a></h3>
-        <p ng-bind="newcontent.description"></p>
-      </div>
+
+
+
+  
+
+
+
+      <section ng-if="usercontent" class="content-list">
+        <header class="object-header">
+          <h1 class="object-hed">
+            Canal da sua nova noticia
+          </h1>
+        </header>
+
+        <article class="content-container">
+
+          <div class="content-image content-image-small">
+            <a class="content-link" href="#">
+              <img ng-src="{{ usercontent | contentimagesrc:'small' }}" />
+            </a>
+          </div>
+
+          <div class="content-content">
+            <header class="content-header">
+              <h2 class="content-title" itemprop="headline">
+                <a class="content-title-link content-link" contentEditable="true" remove-br="true" ng-model="usercontent.title" href="#"></a>
+              </h2>
+              <div class="content-meta">
+                <span class="content-score">10mil gostaram</span>
+                <span class="content-meta-item">
+                  <a class="content-meta-item-link" href="#">
+                    TagUltima
+                  </a>
+                </span>
+                <span class="content-meta-item">TagNoticia</span>
+                <span class="content-meta-item">2h atras</span>
+              </div>
+            </header>
+            
+            <p class="content-description" contentEditable="true" remove-br="true" ng-model="usercontent.description">ccc</p>
+
+          </div>
+        </article>
+
+      </section>
+
+
+
+
+
+            <p><a ng-href="#/conteudo/{{ usercontent.slug }}">... ir para a pagina do conteudo</a></p>
+
+
+    debug:<pre ng-bind="usercontent | json"></pre>
 
     </div>
-
+    <!-- End of ContentController -->
 
     <br/>
     <br/>
     <br/>
+    <br/>
 
-    <div >
-      NEW CONTENT:"<span ng-bind="newcontent.fullurl"></span>"
-    </div>
+    Teste:<span ng-bind="fullurl"></span>
 
 
-<br/>
+    <!-- HOW TO WORK WITH IMAGES:
+
+<h2 contentEditable="true" strip-br="true" ng-model="usercontent.contentid">bbb</h2>
+
+    <img ng-if="content | contenthasimage:'large'" ng-src="{{ content | contentimagesrc:'large' }}" />
+
+    -->
 
 
 
     <div ng-view></div>
 
-    <div>Angular seed app: v<span app-version></span></div>
     
-
 
   
 

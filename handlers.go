@@ -49,8 +49,6 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 	}
 
 	// If user sent us an URL without http, we will put it in the begin of URL
-	// WE FUCK CANT DO TE LINE BELOW, CAUSE WE WILL FUCK THE YOUTUBE ID's, FOR EXAMPLE
-	//newContent.FullUrl = strings.ToLower(newContent.FullUrl)
 	hasHtml := regexp.MustCompile(`^https?:\/\/`)
 	if !hasHtml.MatchString(newContent.FullUrl) {
 		newContent.FullUrl = "http://" + newContent.FullUrl

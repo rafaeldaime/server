@@ -74,7 +74,7 @@ type Url struct {
 
 type Content struct {
 	ContentId   string    `db:"contentid" json:"contentid"`     // *PK max: 20
-	UrlId       string    `db:"urlid" json:"ulid"`              // *FK max: 5
+	UrlId       string    `db:"urlid" json:"urlid"`             // *FK max: 5
 	ChannelId   string    `db:"channelid" json:"channelid"`     // *FK max: 20
 	Title       string    `db:"title" json:"title"`             //  max: 255 (250)
 	Slug        string    `db:"slug" json:"slug"`               //  max: 255 (250)
