@@ -14,6 +14,19 @@ filters.filter('userpicsrc', function() {
 });
 
 
+filters.filter('get', function() {
+	return function(content, $scope, what) {
+
+		if (what == 'channelname')
+			return $scope.channels[content.channelid].channelname
+		if (what == 'channelslug')
+			return $scope.channels[content.channelid].channelslug
+
+		return
+	};
+});
+
+
 filters.filter('contenthasimage', function() {
 	return function(content, size) {
 		if (!content) {
@@ -46,6 +59,10 @@ filters.filter('contentimagesrc', function() {
 		if (!content) {
 			return '';
 		}
+		// Content will always have a small image, even if it's the default
+		if (size == 'small') {
+			return "img/" + content.imageid + "-" + size + ".png";
+		};
 		// Check if there is large image for this content, or return default large image
 		if (size == 'large' && (content.maxsize == 'small' || content.maxsize == 'medium')) {
 			return "img/default-" + size + ".png";

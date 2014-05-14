@@ -18,31 +18,47 @@ directives.directive('contenteditable', function() {
     return {
 		restrict: 'A', // only activate on element attribute
 		require: '?ngModel', // get a hold of NgModelController
-        link: function(scope, element, attrs, ngModel) {
+        link: function($scope, element, attrs, ngModel) {
         	if(!ngModel) return; // do nothing if no ng-model
 
             // view -> model
             element.bind('blur', function() {
-                //console.log("BIDDING!");
-                scope.$apply(function() {
-          			var newValue = element.html();
-          			if( attrs.removeBr ) {
-			            newValue = newValue.replace(/<br\s*[\/]?>/gi, "");
-			            element.html(newValue)
+                $scope.$apply(function() {
+          			var value = element.html();
+                    // Replace html newlines to newline caracter
+                    value = value.replace(/<br\s*[\/]?>/gi, "\n");
+                    // Remove tags and etities html
+                    value = value.replace(/<(.*?)>|&(.*?);/g, "");
+          			if( attrs.title ) {
+                        // Valide Title
+                        value = value.replace(/[^a-zA-Zà-úÀ-Ú0-9 \-!?]/g, "");
 			        }
-          			if( attrs.stripBr ) {
-			            newValue = newValue.replace(/<br\s*[\/]?>/gi, "\n");
-			        }
-                    ngModel.$setViewValue(newValue);
+          			if( attrs.description ) {
+                        // Valide Description
+                        value = value.replace(/[^a-zA-Zà-úÀ-Ú0-9 \-_.,:;!?\n]/g, "");
+                    }
+                    // Remove spaces and newlines at begin and end of the string
+                    value = value.replace(/^\s+|\s+$/g, "");
+                    // Replace 2 or more white spaces to just one space
+                    value = value.replace(/ {2,}/g, " ");
+                    // Replace 2 or more newline together to just one newline
+                    value = value.replace(/\n{2,}/g, "\n");
+
+                    // Value can't be empty, so we don't update them
+                    if (value != "") {
+                        ngModel.$setViewValue(value);
+                    }
+                    ngModel.$render(); // Render again the modifications
                 });
             });
 
+
             // model -> view
             ngModel.$render = function() {
-                //console.log("RENDER!");
                 var value = ngModel.$viewValue;
-      			if( value && attrs.stripBr ) {
-		            value = value.replace(/\\n/gi, "<br>");
+      			if( value && attrs.description ) {
+                    // We should replace newlines to show them
+		            value = value.replace(/\n/g, "<br>");
 		        }
                 element.html(value || '');
             };
@@ -54,15 +70,16 @@ directives.directive('contenteditable', function() {
                     elm = event.target;
 
                 if (enter) {
-                    //console.log("enter");
-          			if( attrs.removeBr ) {
+                    // Title will not have newline
+          			if( attrs.title ) {
 	                    elm.blur();
 	                    event.preventDefault(); 
-			        }                        
+			        }                     
                 }
 
                 if (esc) {
-                    //console.log("esc");
+                    // Esc returns to the original value
+                    ngModel.$render();
                     elm.blur();
                     event.preventDefault();                        
                 }

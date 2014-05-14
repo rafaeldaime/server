@@ -26,9 +26,10 @@ app.controller('AppController', ['$scope', '$http', '$timeout', '$cookies', 'Aut
 	$scope.error = null;
 	$scope.message = null;
 	$scope.spinner = false;
+	$scope.timeFormat = "d-MM-yy 'às' HH:mm"
 
 	$scope.user = null;
-	$scope.channels = null;
+	$scope.channels = {};
 
 
 	$scope.newMessage = function (message) {
@@ -95,7 +96,10 @@ app.controller('AppController', ['$scope', '$http', '$timeout', '$cookies', 'Aut
 
 	Channels.get()
 		.$promise.then(function(channels) {
-			$scope.channels = channels;
+			for (var i in channels) {
+				$scope.channels[ channels[i].channelid ] = channels[i];
+			}
+			//$scope.channels = channels;
 		},function (httpResponse) { // If server returned an error...
 			$scope.newError(httpResponse.data);
 		});

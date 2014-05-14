@@ -76,15 +76,14 @@ type Content struct {
 	ContentId   string    `db:"contentid" json:"contentid"`     // *PK max: 20
 	UrlId       string    `db:"urlid" json:"urlid"`             // *FK max: 5
 	ChannelId   string    `db:"channelid" json:"channelid"`     // *FK max: 20
-	Title       string    `db:"title" json:"title"`             //  max: 255 (250)
-	Slug        string    `db:"slug" json:"slug"`               //  max: 255 (250)
-	Description string    `db:"description" json:"description"` //  max: 255
+	Title       string    `db:"title" json:"title"`             // *NN  max: 255 (250)
+	Slug        string    `db:"slug" json:"slug"`               // *NN  max: 255 (250)
+	Description string    `db:"description" json:"description"` // *NN  max: 255
+	Host        string    `db:"host" json:"host"`               // *NN  max: 20
 	UserId      string    `db:"userid" json:"userid"`           // *FK max: 20
 	ImageId     string    `db:"imageid" json:"imageid"`         // *FK max: 20
-	MaxSize     string    `db:"maxsize" json:"maxsize"`         // *NN enum: {small, medium, large}
 	LikeCount   int       `db:"likecount" json:"likecount"`     // default: 0
 	Creation    time.Time `db:"creation" json:"creation"`       // *NN
 	LastUpdate  time.Time `db:"lastupdate" json:"lastupdate"`   // *NN
 	Deleted     bool      `db:"deleted" json:"deleted"`         // default: 0
-	FullUrl     string    `db:"-" json:"fullurl"`               // Not in Data Base
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/dchest/uniuri" // give us random URIs
+	"github.com/go-martini/martini"
 	"github.com/martini-contrib/render"
 )
 
@@ -24,9 +25,9 @@ func getAllChannels(db DB, r render.Render) {
 	r.JSON(http.StatusOK, channels)
 }
 
-func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
-	var newContent Content
-	err := json.NewDecoder(req.Body).Decode(&newContent)
+func updateContent(db DB, auth Auth, params martini.Params, r render.Render, req *http.Request) {
+	content := &Content{}
+	err := json.NewDecoder(req.Body).Decode(content)
 	if err != nil {
 		body, _ := ioutil.ReadAll(req.Body)
 		r.JSON(http.StatusNotAcceptable, NewError(ErrorCodeDefault, fmt.Sprintf(
@@ -34,7 +35,106 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 		return
 	}
 
-	if newContent.FullUrl == "" || newContent.ChannelId == "" {
+	content.ContentId = params["contentid"]
+
+	// Get user in this session
+	user, err := auth.GetUser()
+	if err != nil || user == nil {
+		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpa, voce precisa estar logado para adicionar um conteudo! %s.", err)))
+		return
+	}
+
+	// Checks if the session's user really is the content's owner
+	query := "select * from content where content.contentid=? and content.userid=?"
+	var contents []*Content
+	_, err = db.Select(&contents, query, content.ContentId, user.UserId)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, ocorreu um erro ao buscar seu conteudo no banco. %s.", err)))
+		return
+	}
+
+	if len(contents) == 0 {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas nao foi encontrado um conteudo seu com o ContentId %s informado.", content.ContentId)))
+		return
+	}
+
+	oldContent := contents[0]
+
+	// Let's check if ChannelId passed by user really exists
+	obj, err := db.Get(Channel{}, content.ChannelId)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, ocorreu um erro ao buscar o canal fornecido com esse id. %s.", err)))
+		return
+	}
+	if obj == nil {
+		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas o channelid %s fornecido nao existe.", content.ChannelId)))
+		return
+	}
+
+	content.Title = StripTitle(content.Title)
+	content.Description = StripDescription(content.Description)
+
+	if content.Title == "" || content.Description == "" {
+		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpa, mas o titulo e a descricao nao podem ficar vazios!")))
+		return
+	}
+
+	slug, err := GetSlug(content)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, ocorreu um erro ao tentar criar o slug do seu conteudo. %s.", err)))
+		return
+	}
+
+	// Updating fields on saved content
+	oldContent.ChannelId = content.ChannelId
+	oldContent.Title = content.Title
+	oldContent.Slug = slug
+	oldContent.Description = content.Description
+	oldContent.LastUpdate = time.Now()
+
+	log.Printf("Content: %#v\n\n", content)
+	log.Printf("oldContent: %#v\n", oldContent)
+
+	count, err := db.Update(oldContent)
+	if err != nil {
+		log.Printf("Erro: %#v", err)
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas ocorreu um erro ao tentar atualizar seu conteudo. %s.", err)))
+		return
+	}
+	if count == 0 {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas seu conteudo nao foi atualizado.")))
+		return
+	}
+
+	r.JSON(http.StatusOK, oldContent)
+	return
+}
+
+type newContentDataStruct struct {
+	ChannelId string
+	FullUrl   string
+}
+
+func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
+	var newContentData newContentDataStruct
+	err := json.NewDecoder(req.Body).Decode(&newContentData)
+	if err != nil {
+		body, _ := ioutil.ReadAll(req.Body)
+		r.JSON(http.StatusNotAcceptable, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Nao foi possivel decodificar o objeto Json: %s! %s.", body, err)))
+		return
+	}
+
+	if newContentData.FullUrl == "" || newContentData.ChannelId == "" {
 		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpa, mas os campos fullurl e/ou channelid nao foram informados!")))
 		return
@@ -50,15 +150,14 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 
 	// If user sent us an URL without http, we will put it in the begin of URL
 	hasHtml := regexp.MustCompile(`^https?:\/\/`)
-	if !hasHtml.MatchString(newContent.FullUrl) {
-		newContent.FullUrl = "http://" + newContent.FullUrl
+	if !hasHtml.MatchString(newContentData.FullUrl) {
+		newContentData.FullUrl = "http://" + newContentData.FullUrl
 	}
 
 	// Ver se ja existe um conteudo DESTE usuario com a FullUrl passada
 	query := "select content.* from content, url where content.urlid=url.urlid and content.userid=? and url.fullurl=?"
 	var contents []Content
-	// !!! I'VE CHANGED HERE JUST FOR DEBBUG
-	_, err = db.Select(&contents, query, user.UserId+"foda", newContent.FullUrl)
+	_, err = db.Select(&contents, query, user.UserId, newContentData.FullUrl)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, ocorreu um erro ao se verificar se ja existe um conteudo seu com essa URL. %s.", err)))
@@ -66,13 +165,25 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 	}
 
 	if len(contents) > 0 {
-		contents[0].FullUrl = newContent.FullUrl
 		r.JSON(http.StatusOK, contents[0])
 		return
 	}
 
+	// Let's check if ChannelId passed by user really exists
+	obj, err := db.Get(Channel{}, newContentData.ChannelId)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, ocorreu um erro ao buscar o canal fornecido com esse id. %s.", err)))
+		return
+	}
+	if obj == nil {
+		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas o channelid %s fornecido nao existe.", newContentData.ChannelId)))
+		return
+	}
+
 	// Getting the content on the WEB based on the newContent.FullUrl given by user
-	gettedContent, imageUrl, err := GetContent(&newContent)
+	content, imageUrl, err := GetContent(newContentData.FullUrl)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, mas ocorreu um erro ao tentar baixar o conteudo da URL informada. %s.", err)))
@@ -80,7 +191,7 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 	}
 
 	// Lets save our new URL
-	url, err := saveUrl(db, user, gettedContent.FullUrl)
+	url, err := saveUrl(db, user, newContentData.FullUrl)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, mas ocorreu um erro ao tentar adicionar sua URL. %s.", err)))
@@ -96,7 +207,9 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 		}
 	}
 
-	content, err := CreateContent(db, user, url, img, gettedContent)
+	// Adding the channel id passed by user
+	content.ChannelId = newContentData.ChannelId
+	content, err = CreateContent(db, user, url, img, content)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, mas ocorreu um erro ao tentar adicionar seu conteudo. %s.", err)))

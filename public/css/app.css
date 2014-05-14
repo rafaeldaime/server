@@ -115,6 +115,10 @@ article, aside, details, figcaption, figure, footer, header, hgroup, nav, sectio
 
 
 
+.close-content {
+    float: right;
+}
+
 
 .object-header {
     clear: both;
@@ -145,7 +149,22 @@ article, aside, details, figcaption, figure, footer, header, hgroup, nav, sectio
     max-width: 774px;
     padding-top: 24px;
     padding-bottom: 19px;
-    border-bottom: 1px solid #EBEBEB;
+}
+
+
+.content-container .content-location {
+    padding-left: 258px;
+    font-size: 0.9em;
+    color: #606060;
+}
+
+.content-container .content-location .content-location-address {
+    color: #606060;
+    display: inline-block;
+    font-size: 0.9em;
+    position: relative;
+    padding: 8px 0px;
+    white-space: nowrap;
 }
 
 .content-container .content-image {
@@ -242,6 +261,25 @@ article, aside, details, figcaption, figure, footer, header, hgroup, nav, sectio
     color: #444;
     font: 0.875em/1.286em "source-sans-pro","Helvetica Neue",sans-serif;
     margin: 0.25em 0px 0.357em;
+}
+
+
+.content-container .content-host {
+    color: #606060;
+    display: block;
+    font-size: 0.75em;
+    padding: 8px 4px;
+    white-space: nowrap;
+    text-align: right;
+}
+
+
+
+.content-container .content-host .content-host-link {
+    color: #606060;
+    display: inline;
+    text-decoration: none;
+    content: "·";
 }
 
 

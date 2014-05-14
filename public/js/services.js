@@ -24,10 +24,11 @@ services.factory('Channels', function ($resource) {
 
 
 
-// Here we will pass the URL to a new content be created
-services.factory('Contents', function ($resource) {
-    return $resource('/content', {}, {
-        create: {method: 'POST'}
+// Here we will pass the FullUrl and the ChannelId to a new content be created
+services.factory('Content', function ($resource) {
+    return $resource('/content/:contentid', {contentid: '@contentid'}, {
+        create: {method: 'POST'},
+        update: {method: 'PUT'}
     })
 });
 

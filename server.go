@@ -70,6 +70,7 @@ func init() {
 	r.Get("/channel", getAllChannels)
 
 	r.Post("/content", createNewContent)
+	r.Put("/content/:contentid", updateContent)
 
 	r.NotFound(func(r render.Render, req *http.Request) {
 

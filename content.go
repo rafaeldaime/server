@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,8 +16,71 @@ import (
 	"github.com/extemporalgenome/slug"
 )
 
-func GetContent(newContent *Content) (*Content, string, error) {
-	resp, err := http.Get(newContent.FullUrl)
+// ^\s+|\s+$ remove white spaces in the begin of the string
+// and in the end of the string, | is like an OR operator and with /g (global)
+// it will relace all substrings that match in any of these cases
+// \s{2,} matches 2 or more white spaces (or newlines)
+var (
+	htmlNewline         = regexp.MustCompile(`<br\s*[\/]?>`)
+	htmlTagsAndEntities = regexp.MustCompile(`<(.*?)>|&(.*?);`)
+	spacesTogether      = regexp.MustCompile(` {2,}`)
+	newlinesTogether    = regexp.MustCompile(`\n{2,}`)
+	beginEndNewLines    = regexp.MustCompile(`^\s+|\s+$`)
+	validTitle          = regexp.MustCompile(`^[^a-zA-Zà-úÀ-Ú0-9 \-!?]`)
+	validDescription    = regexp.MustCompile(`^[^a-zA-Zà-úÀ-Ú0-9 \-_.,:;!?\n]`)
+)
+
+func StripTitle(title string) string {
+	// Accept accents and - ! ?
+	title = htmlTagsAndEntities.ReplaceAllString(title, "")
+	title = validTitle.ReplaceAllString(title, "")
+	title = beginEndNewLines.ReplaceAllString(title, "")
+	title = spacesTogether.ReplaceAllString(title, " ")
+	title = newlinesTogether.ReplaceAllString(title, "\n")
+	return title
+}
+
+func StripDescription(description string) string {
+	// Accept accents and some special characters, including a new-line
+	log.Printf("Description1: '%v'", description)
+	description = htmlNewline.ReplaceAllString(description, "\n")
+	log.Printf("Description2: '%v'", description)
+	description = htmlTagsAndEntities.ReplaceAllString(description, "")
+	log.Printf("Description3: '%v'", description)
+	description = validDescription.ReplaceAllString(description, "")
+	log.Printf("Description4: '%v'", description)
+	description = beginEndNewLines.ReplaceAllString(description, "")
+	log.Printf("Description5: '%v'", description)
+	description = spacesTogether.ReplaceAllString(description, " ")
+	log.Printf("Description6: '%v'", description)
+	description = newlinesTogether.ReplaceAllString(description, "\n")
+	log.Printf("Description7: '%v'", description)
+	return description
+}
+
+func GetSlug(content *Content) (string, error) {
+	s := slug.Slug(content.Title)
+
+	// Let's check if this slug already exists,
+	// if existis, we will increment a sulfix to it
+	newSlug := s
+	increment := 1
+	count, err := db.SelectInt("select count(*) from content where contentid!=? AND slug=?", content.ContentId, newSlug)
+	for err == nil && count != 0 {
+		increment += 1
+		newSlug = fmt.Sprintf("%s-%d", s, increment)
+		count, err = db.SelectInt("select count(*) from content where contentid!=? AND slug=?", content.ContentId, newSlug)
+	}
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("SLUG: %s, inc: %d, count: %d\n", newSlug, increment, count)
+	return newSlug, nil
+}
+
+func GetContent(fullUrl string) (*Content, string, error) {
+	resp, err := http.Get(fullUrl)
 	if err != nil {
 		return nil, "", errors.New(
 			fmt.Sprintf("Desculpe, ocorreu ao tentar recuperar a pagina referente a URL passada. %s.", err))
@@ -35,6 +99,7 @@ func GetContent(newContent *Content) (*Content, string, error) {
 			fmt.Sprintf("Erro ao decodificar o charset da pagina. %s.", err))
 	}
 
+	content := &Content{}
 	imageUrl := ""
 
 	// This function create a Tokenizer for an io.Reader, obs. HTML should be UTF-8
@@ -61,8 +126,8 @@ func GetContent(newContent *Content) (*Content, string, error) {
 				nextTokenType := z.Next()
 				if nextTokenType == html.TextToken {
 					nextToken := z.Token()
-					newContent.Title = strings.TrimSpace(nextToken.Data)
-					// log.Println("<title> = " + newContent.Title)
+					content.Title = strings.TrimSpace(nextToken.Data)
+					// log.Println("<title> = " + content.Title)
 				}
 
 			} else if token.Data == "meta" {
@@ -85,19 +150,19 @@ func GetContent(newContent *Content) (*Content, string, error) {
 
 				case "title", "og:title", "twitter:title":
 					if strings.TrimSpace(value) != "" {
-						newContent.Title = strings.TrimSpace(value)
+						content.Title = strings.TrimSpace(value)
 						// log.Printf("Title: %s\n", strings.TrimSpace(value))
 					}
 
 				case "og:site_name", "twitter:domain":
 					if strings.TrimSpace(value) != "" {
-						// newContent.Title = strings.TrimSpace(value)
-						log.Printf("Site Name: %s\n", strings.TrimSpace(value))
+						//content.SiteName = strings.TrimSpace(value)
+						//log.Printf("Site Name: %s\n", strings.TrimSpace(value))
 					}
 
 				case "description", "og:description", "twitter:description":
 					if strings.TrimSpace(value) != "" {
-						newContent.Description = strings.TrimSpace(value)
+						content.Description = strings.TrimSpace(value)
 						// log.Printf("Description: %s\n", strings.TrimSpace(value))
 					}
 				case "og:image", "twitter:image", "twitter:image:src":
@@ -107,32 +172,37 @@ func GetContent(newContent *Content) (*Content, string, error) {
 					}
 				case "og:url", "twitter:url":
 					if strings.TrimSpace(value) != "" {
-						newContent.FullUrl = strings.TrimSpace(value)
+						// Not used, cause user could use a redirect service
+						// fullUrl = strings.TrimSpace(value)
 						// log.Printf("Url: %s\n", strings.TrimSpace(value))
 					}
 				}
 			}
 		}
 	}
+
 	// Limiting the size of Title and Description to 250 characters
-	if len(newContent.Title) > 250 {
-		newContent.Title = newContent.Title[0:250]
+	if len(content.Title) > 250 {
+		content.Title = content.Title[0:250]
 	}
-	if len(newContent.Description) > 250 {
-		newContent.Description = newContent.Description[0:250]
+	if len(content.Description) > 250 {
+		content.Description = content.Description[0:250]
+	}
+	// If content description is empty, lets full fill with something
+	if len(content.Description) == 0 {
+		content.Description = "Veja o conteudo completo..."
 	}
 
-	log.Printf("Title: %s\n description: %s\n imageUrl:%s\n",
-		newContent.Title, newContent.Description, imageUrl)
+	// Adding the host of this content
+	content.Host = resp.Request.URL.Host
 
-	return newContent, imageUrl, nil
+	log.Printf("Title: %s\n description: %s\n host:%s\n imageUrl:%s\n",
+		content.Title, content.Description, content.Host, imageUrl)
+
+	return content, imageUrl, nil
 }
 
-func consumeTag(content *Content, key, value string) {
-
-}
-
-func CreateContent(db DB, user *User, url *Url, img *Image, newContent *Content) (*Content, error) {
+func CreateContent(db DB, user *User, url *Url, img *Image, content *Content) (*Content, error) {
 	contentId := uniuri.NewLen(20)
 	u, err := db.Get(Content{}, contentId)
 	for err == nil && u != nil {
@@ -144,7 +214,7 @@ func CreateContent(db DB, user *User, url *Url, img *Image, newContent *Content)
 		return nil, err
 	}
 
-	s := slug.Slug(newContent.Title)
+	s := slug.Slug(content.Title)
 
 	// Let's check if this slug already exists,
 	// if existis, we will increment a sulfix to it
@@ -163,33 +233,31 @@ func CreateContent(db DB, user *User, url *Url, img *Image, newContent *Content)
 		return nil, err
 	}
 
-	content := &Content{
+	newContent := &Content{
 		ContentId:   contentId,
 		UrlId:       url.UrlId,
-		ChannelId:   newContent.ChannelId,
-		Title:       newContent.Title,
+		ChannelId:   content.ChannelId,
+		Title:       content.Title,
 		Slug:        newSlug,
-		Description: newContent.Description,
+		Description: content.Description,
+		Host:        content.Host,
 		UserId:      user.UserId,
 		ImageId:     "default", // We will check the if there is an image below
-		MaxSize:     "",        // It sinalizes that there isn't a image for this content
 		LikeCount:   0,
 		Creation:    time.Now(),
 		LastUpdate:  time.Now(),
 		Deleted:     false,
-		FullUrl:     newContent.FullUrl,
 	}
 
 	if img != nil {
-		content.ImageId = img.ImageId
-		content.MaxSize = img.MaxSize
+		newContent.ImageId = img.ImageId
 	}
 
-	err = db.Insert(content)
+	err = db.Insert(newContent)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return content, nil
+	return newContent, nil
 }
