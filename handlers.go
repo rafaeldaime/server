@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 	"time"
 
@@ -62,7 +61,7 @@ func changeContentImage(db DB, auth Auth, params martini.Params, r render.Render
 	}
 
 	if len(contents) == 0 {
-		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+		r.JSON(http.StatusForbidden, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, mas nao foi encontrado um conteudo seu com o ContentId %s informado.", contentId)))
 		return
 	}
@@ -79,32 +78,52 @@ func changeContentImage(db DB, auth Auth, params martini.Params, r render.Render
 		log.Printf("FILE: %s:%s", key, value)
 	}
 
+	var image *Image
 	for _, fileHeaders := range req.MultipartForm.File {
 		for _, fileHeader := range fileHeaders {
-			file, _ := fileHeader.Open()
-			path := fmt.Sprintf("public/%s", fileHeader.Filename)
-			buf, _ := ioutil.ReadAll(file)
-			ioutil.WriteFile(path, buf, os.ModePerm)
+			file, err := fileHeader.Open()
+			defer file.Close()
+			if err != nil {
+				r.JSON(http.StatusForbidden, NewError(ErrorCodeDefault, fmt.Sprintf(
+					"Desculpe, ocorreu um erro abrir o arquio enviado. %s.", err)))
+				return
+			}
+
+			// SAVE IMAGE ()
+
+			image, err = SaveImage(file)
+			if err != nil {
+				r.JSON(http.StatusForbidden, NewError(ErrorCodeDefault, fmt.Sprintf(
+					"Desculpe, ocorreu um erro abrir o arquio enviado. %s.", err)))
+				return
+			}
+
+			// Stop on the first file!
+			break
+
+			// path := fmt.Sprintf("public/%s", fileHeader.Filename)
+			// buf, _ := ioutil.ReadAll(file)
+			// ioutil.WriteFile(path, buf, os.ModePerm)
 		}
 	}
 
-	// Updating fields on saved content
-	oldContent.ImageId = "NEWIMAGEID"
+	// Updating fields on saved content... to appoint the new image
+	oldContent.ImageId = image.ImageId
 
 	log.Printf("oldContent: %#v\n", oldContent)
 
-	// count, err := db.Update(oldContent)
-	// if err != nil {
-	// 	log.Printf("Erro: %#v", err)
-	// 	r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
-	// 		"Desculpe, mas ocorreu um erro ao tentar atualizar seu conteudo. %s.", err)))
-	// 	return
-	// }
-	// if count == 0 {
-	// 	r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
-	// 		"Desculpe, mas seu conteudo nao foi atualizado.")))
-	// 	return
-	// }
+	count, err := db.Update(oldContent)
+	if err != nil {
+		log.Printf("Erro: %#v", err)
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas ocorreu um erro ao tentar atualizar seu conteudo. %s.", err)))
+		return
+	}
+	if count == 0 {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas seu conteudo nao foi atualizado.")))
+		return
+	}
 
 	r.JSON(http.StatusOK, oldContent)
 	return

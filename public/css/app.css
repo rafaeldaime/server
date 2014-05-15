@@ -23,6 +23,7 @@ article, aside, details, figcaption, figure, footer, header, hgroup, nav, sectio
     display: block;
 }
 
+
 .spinner {
 	position: absolute;
 	left: 50%;

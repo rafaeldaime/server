@@ -67,7 +67,10 @@ angular.module('app.controllers', [])
 
 
 
-
+	$scope.triggerImageUpload = function () {
+		var imageInput = angular.element('#usercontent-imageinput');
+	    imageInput.trigger('click')
+	}
 
 	$scope.onFileSelect = function($files) {
 	    //$files: an array of files selected, each file has name, size, and type.
@@ -86,10 +89,11 @@ angular.module('app.controllers', [])
 	        //formDataAppender: function(formData, key, val){}
 	      }).progress(function(evt) {
 	        console.log('percent: ' + parseInt(100.0 * evt.loaded / evt.total));
-	      }).success(function(data, status, headers, config) {
+	      }).success(function(content, status, headers, config) {
 	        // file is uploaded successfully
 	        console.log("Sucess!");
-	        console.log(data);
+	        console.log(content);
+	        $scope.usercontent.imageid = content.imageid;
 	      }).error(function(data, status, headers, config) {
 	        // file is uploaded successfully
 	        console.log("ERRO!");

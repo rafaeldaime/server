@@ -5,6 +5,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	"image/png"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -15,11 +16,6 @@ import (
 	"github.com/oliamb/cutter"
 )
 
-type dimension struct {
-	Width  int
-	Height int
-}
-
 // Take the site image and save in our server
 func GetImage(db DB, imageUrl string) (*Image, error) {
 
@@ -29,6 +25,21 @@ func GetImage(db DB, imageUrl string) (*Image, error) {
 	}
 
 	defer res.Body.Close()
+
+	image, err := SaveImage(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return image, nil
+}
+
+type dimension struct {
+	Width  int
+	Height int
+}
+
+func SaveImage(file io.Reader) (*Image, error) {
 
 	imageId := uniuri.NewLen(20)
 	i, err := db.Get(Image{}, imageId)
@@ -44,7 +55,7 @@ func GetImage(db DB, imageUrl string) (*Image, error) {
 	}
 
 	// Lets decode our image to work with it
-	originalImg, _, err := image.Decode(res.Body)
+	originalImg, _, err := image.Decode(file)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +68,7 @@ func GetImage(db DB, imageUrl string) (*Image, error) {
 
 	// We will save 3 resized images
 	sizes := [...]string{"small", "medium", "large"}
-	dimensions := [...]dimension{{233, 127}, {312, 170}, {661, 360}}
+	dimensions := [...]dimension{{232, 126}, {312, 170}, {660, 360}}
 
 	// We will save the Thumbnails just if the original image
 	// dimension is bigger or equals than the thumbnail dimension
@@ -152,4 +163,5 @@ func GetImage(db DB, imageUrl string) (*Image, error) {
 	}
 
 	return image, nil
+
 }
