@@ -54,6 +54,7 @@ func init() {
 	r := martini.NewRouter()
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		// Not rendering, couse of our angulars {{ }}
 		http.ServeFile(w, r, "index.html")
 	})
 
@@ -65,15 +66,18 @@ func init() {
 	// Add the Auth Handlers
 	r.Get("/login", LoginHandler)
 	r.Get("/logincallback", LoginCallbackHandler)
-	r.Get("/me", MeHandler)
 
-	r.Get("/channel", getAllChannels)
+	// Api Handlers
+	r.Get("/api/me", meHandler)
 
-	r.Post("/content", createNewContent)
-	r.Put("/content/:contentid", updateContent)
+	r.Get("/api/channels", getAllChannels)
+
+	r.Post("/api/contents", createNewContent)
+	r.Put("/api/contents/:contentid", updateContent)
+	r.Post("/api/contents/:contentid/image", changeContentImage)
 
 	r.NotFound(func(r render.Render, req *http.Request) {
-
+		// !!! Need to check if the call isn't to /api, so return default html not found
 		r.JSON(http.StatusNotFound, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, mas nao ha nada no endereço requisitado. [%s] %s", req.Method, req.RequestURI)))
 	})

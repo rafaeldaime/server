@@ -5,23 +5,21 @@
 angular.module('app.controllers', [])
 
 
-  .controller('CenterController', ['$scope', function($scope) {
+  .controller('CenterController', function($scope) {
 
-  }])
+  })
 
 
-  .controller('ContentController', ['$scope', 'Content', function($scope, Content) {
+  .controller('ContentController', function($scope, Restangular, $upload) {
   	$scope.usercontent = null;
 	$scope.channelid = '';
 	$scope.fullurl = "http://";
 
+
 	// DEBUG !!!
 	$scope.debug = function () {
 		$scope.fullurl = "http://digg.com/tag/news";
-		for (var channelid in $scope.channels) { // get the first
-			$scope.channelid = channelid;
-			return
-		}
+		$scope.channelid = _.first($scope.channels).channelid;
 	}
 
 	$scope.checkFullUrl = function () {
@@ -32,7 +30,7 @@ angular.module('app.controllers', [])
 		}
 	}
 
-	$scope.clearNewContent = function () {
+	$scope.closeContent = function () {
 		$scope.usercontent = null;
 		$scope.channelid = '';
 		$scope.fullurl = "http://";
@@ -43,48 +41,63 @@ angular.module('app.controllers', [])
 	var watchAndSaveContent = function (newValue, oldValue) {
 		if (oldValue != null && newValue != null) {
 			console.log("Updating the user content!");
-			Content.update($scope.usercontent) 
-				.$promise.then(function(content) {
-					for (var attr in content) {
-						//if ($scope.usercontent[attr] != content[attr]) {
-						//	$scope.usercontent[attr] = content[attr];
-						//}
-						$scope.usercontent = content;
-					}
-					console.log("UPDATED!");
-				},function (httpResponse) {
-					console.log("SOMETHING HAVE GOT WRONG!");
-					$scope.newError(httpResponse.data);
-					newValue = oldValue; // Dunno if it works
-				});
+			$scope.usercontent.save();
 		}
 	}
 	// Listen to changes in unsers content
 	$scope.$watch("usercontent.title", watchAndSaveContent);
 	$scope.$watch("usercontent.description", watchAndSaveContent);
+	$scope.$watch("usercontent.channelid", watchAndSaveContent);
 
 
 	$scope.createContent = function () {
-		// If the user don't included the http:// in the url,
-		// than we need to include it for him
-		if (!$scope.fullurl.match(/^(https?:\/\/)/)) {
-			$scope.fullurl = "http://" + $scope.fullurl;
-		}
 		$scope.spinner = true;
 		var newContentData = {
 			FullUrl: $scope.fullurl,
 			ChannelId: $scope.channelid
 		}
-		Content.create(newContentData)
-			.$promise.then(function(content) {
-				// card instanceof Content
+		Restangular.all('contents').post(newContentData).then(function (content) {
 				$scope.usercontent = content;
 				$scope.spinner = false;
-			},function (httpResponse) {
-				$scope.newError(httpResponse.data);
-				$scope.clearNewContent();
-				$scope.spinner = false;
-			});
+		});
 	}
 
-  }]);
+
+
+
+
+
+
+
+	$scope.onFileSelect = function($files) {
+	    //$files: an array of files selected, each file has name, size, and type.
+	    for (var i = 0; i < $files.length; i++) {
+	      var file = $files[i];
+	      $scope.upload = $upload.upload({
+	        url: 'api/contents/'+$scope.usercontent.contentid+'/image', //upload.php script, node.js route, or servlet url
+	        method: 'POST',
+	        // headers: {'header-key': 'header-value'},
+	        // withCredentials: true,
+	        //data: $scope.usercontent, //{myObj: $scope.myModelObj},
+	        file: file, // or list of files: $files for html5 only
+	        /* set the file formData name ('Content-Desposition'). Default is 'file' */
+	        //fileFormDataName: myFile, //or a list of names for multiple files (html5).
+	        /* customize how data is added to formData. See #40#issuecomment-28612000 for sample code */
+	        //formDataAppender: function(formData, key, val){}
+	      }).progress(function(evt) {
+	        console.log('percent: ' + parseInt(100.0 * evt.loaded / evt.total));
+	      }).success(function(data, status, headers, config) {
+	        // file is uploaded successfully
+	        console.log("Sucess!");
+	        console.log(data);
+	      }).error(function(data, status, headers, config) {
+	        // file is uploaded successfully
+	        console.log("ERRO!");
+	        console.log(data);
+	      });
+	      //.then(success, error, progress); 
+	      //.xhr(function(xhr){xhr.upload.addEventListener(...)})// access and attach any event listener to XMLHttpRequest.
+	    }
+	}
+
+  });

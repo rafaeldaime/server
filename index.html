@@ -38,21 +38,27 @@
       <span ng-bind="message"></span>
     </div>
 
-    <span ng-hide="user">
+
+
+
+
+
+
+    <span ng-hide="me">
       <img src="pic/default.png">
       Anonimo
       <a href="/login">login</a>.
     </span>
-    <span ng-show="user">
-      <img ng-src="{{ user | userpicsrc }}">
-      {{ user.fullname }}
+    <span ng-show="me">
+      <img ng-src="{{ me | userpicsrc }}">
+      {{ me.fullname }}
       <a href="#" ng-click="logout()">logout</a>
     </span>
 
 
 
 
-    <ul class="channels" ng-show="channels">
+    <ul class="channels">
       <li ng-repeat="channel in channels">
         <a ng-href="/#/{{ channel.channelslug }}">{{ channel.channelname }}</a>
       </li>
@@ -60,7 +66,7 @@
 
 
     <!-- ContentController to add/edit contents added by user -->
-    <div ng-controller="ContentController" ng-show="user">
+    <div ng-controller="ContentController" ng-show="me">
 
       <h3>Adicione um conteudo da Internet</h3>
       <form  ng-hide="usercontent" name="createContentForm" ng-submit="createContent()" novalidate>
@@ -103,24 +109,34 @@
 
 
   
+      <!-- User Content removed...
+          <h1 class="object-hed" ng-bind="usercontent | get:this:'channelname'">
+          </h1>
+       -->
 
-
-
+      <!-- User Content -->
       <section ng-if="usercontent" class="content-list">
         <header class="object-header">
 
-          <input class="close-content" type="reset" ng-show="usercontent" ng-click="clearNewContent()" value="Pronto!"/>
+          <input class="content-button" type="reset" ng-click="closeContent()" value="Pronto!"/>
 
-          <h1 class="object-hed" ng-bind="usercontent | get:this:'channelname'">
-            Canal da sua nova noticia
-          </h1>
+
+          <select class="content-header-channel" ng-model="usercontent.channelid">
+            <option ng-repeat="channel in channels" value="{{ channel.channelid }}"  ng-selected="channel.channelid == usercontent.channelid">
+              {{ channel.channelname }}
+            </option>
+          </select >
+
+
+<input type="file" ng-file-select="onFileSelect($files)" />
+
         </header>
 
         <article class="content-container">
 
             <div class="content-location">
               <span class="content-location-address" ng-bind="usercontent | get:this:'channelslug'">
-              </span>/<span class="content-location-address" ng-bind="usercontent.slug"></span>
+              </span>/<span class="content-location-address" ng-bind="usercontent.slug | strLimit:60"></span>
             </div>
 
 
@@ -128,6 +144,7 @@
             <a class="content-link" href="#">
               <img ng-src="{{ usercontent | contentimagesrc:'small' }}" />
             </a>
+
           </div>
 
           <div class="content-content">
@@ -143,12 +160,9 @@
               <div class="content-meta">
                 <span class="content-score">10mil gostaram</span>
                 <span class="content-meta-item">
-                  <a class="content-meta-item-link" href="#">
-                    TagUltima
+                  <a class="content-meta-item-link" ng-bind="usercontent.creation | date : timeFormat" href="#">
                   </a>
                 </span>
-                <span class="content-meta-item">TagNoticia</span>
-                <span class="content-meta-item" ng-bind="usercontent.creation | date : timeFormat"></span>
               </div>
             </header>
             
@@ -162,7 +176,7 @@
         </article>
 
       </section>
-
+      <!-- End of User Content -->
 
 
 
@@ -170,17 +184,20 @@
             <p><a ng-href="#/conteudo/{{ usercontent.slug }}">... ir para a pagina do conteudo</a></p>
 
 
-    debug:<pre ng-bind="usercontent | json"></pre>
-
     </div>
     <!-- End of ContentController -->
 
+
+
+
+    <p>debug:<pre ng-bind="me | json"></pre></p>
+
     <br/>
     <br/>
     <br/>
     <br/>
 
-    Teste:<span ng-bind="fullurl"></span>
+    <p>Teste:"<span ng-bind="fullurl"></span>"</p>
 
 
     <!-- HOW TO WORK WITH IMAGES:
@@ -200,10 +217,20 @@
   
 
   </div> <!-- End of my main content -->
+  <script>
+    FileAPI = {
+      jsUrl: 'js/lib/upload/yourcdn.com/js/FileAPI.min.js',
+      staticPath: 'js/lib/upload/'
+    }
+  </script>
+  <script src="js/lib/lodash.js"></script>
+  <script src="js/lib/upload/angular-file-upload-shim.min.js"></script>
   <script src="js/angular/angular.js"></script>
   <script src="js/angular/angular-route.js"></script>
   <script src="js/angular/angular-cookies.js"></script>
-  <script src="js/angular/angular-resource.js"></script>
+  <script src="js/lib/restangular.js"></script>
+  <script src="js/lib/upload/angular-file-upload.min.js"></script> 
+
   <script src="js/app.js"></script>
   <script src="js/services.js"></script>
   <script src="js/controllers.js"></script>

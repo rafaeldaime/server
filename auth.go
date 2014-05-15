@@ -59,16 +59,6 @@ func (u *UserAuth) GetUser() (*User, error) {
 	}
 }
 
-func MeHandler(auth Auth, r render.Render) {
-	user, err := auth.GetUser()
-	if err != nil {
-		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Voce nao esta logado! %s.", err)))
-	} else {
-		r.JSON(http.StatusOK, user)
-	}
-}
-
 func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 	header := r.Header.Get("Authorization")
 

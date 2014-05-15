@@ -6,7 +6,7 @@ var filters = angular.module('app.filters', []);
 
 filters.filter('userpicsrc', function() {
 	return function(user) {
-		if (user) {
+		if (user && user) {
 			return "pic/" + user.picid + ".png"
 		};
 		return "pic/default.png";
@@ -14,15 +14,28 @@ filters.filter('userpicsrc', function() {
 });
 
 
+filters.filter('strLimit', function() {
+	return function(str, limit) {
+		if (str.length > limit) {
+			return str.substr(0, limit-3) + " ..."
+		};
+		return str
+	};
+});
+
+
+
 filters.filter('get', function() {
 	return function(content, $scope, what) {
 
 		if (what == 'channelname')
-			return $scope.channels[content.channelid].channelname
+			return _.find($scope.channels, function (channel) {
+				return channel.channelid == content.channelid
+			}).channelname
 		if (what == 'channelslug')
-			return $scope.channels[content.channelid].channelslug
-
-		return
+			return _.find($scope.channels, function (channel) {
+				return channel.channelid == content.channelid
+			}).channelslug
 	};
 });
 
@@ -72,12 +85,5 @@ filters.filter('contentimagesrc', function() {
 			return "img/default-" + size + ".png";
 		};
 		return "img/" + content.imageid + "-" + size + ".png";
-	};
-});
-
-
-filters.filter('json', function() {
-	return function(content) {
-		return angular.toJson(content, true)
 	};
 });

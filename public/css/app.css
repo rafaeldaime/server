@@ -115,8 +115,9 @@ article, aside, details, figcaption, figure, footer, header, hgroup, nav, sectio
 
 
 
-.close-content {
+.content-button {
     float: right;
+    display: inline-block;
 }
 
 
@@ -128,6 +129,17 @@ article, aside, details, figcaption, figure, footer, header, hgroup, nav, sectio
     padding-bottom: 21px;
     border-bottom: 1px solid #EBEBEB;
 }
+
+
+.object-header .content-header-channel {
+    display: inline-block;
+    font-family: "lft-etica","Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-weight: 500;
+    font-size: 1.3em;
+    margin: 0px 7px 5px 0px;
+    float: left;
+}
+
 .object-hed {
     display: inline-block;
     font-family: "lft-etica","Helvetica Neue",Helvetica,Arial,sans-serif;

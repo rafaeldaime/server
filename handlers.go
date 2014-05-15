@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"time"
 
@@ -23,6 +24,90 @@ func getAllChannels(db DB, r render.Render) {
 		return
 	}
 	r.JSON(http.StatusOK, channels)
+}
+
+func meHandler(auth Auth, r render.Render) {
+	user, err := auth.GetUser()
+	if err != nil {
+		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Voce nao esta logado! %s.", err)))
+	} else {
+		r.JSON(http.StatusOK, user)
+	}
+
+}
+
+// 5MB
+const MAX_MEMORY = 5 * 1024 * 1024
+
+func changeContentImage(db DB, auth Auth, params martini.Params, r render.Render, req *http.Request) {
+	contentId := params["contentid"]
+
+	// Get user in this session
+	user, err := auth.GetUser()
+	if err != nil || user == nil {
+		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpa, voce precisa estar logado para adicionar um conteudo! %s.", err)))
+		return
+	}
+
+	// Checks if the session's user really is the content's owner
+	query := "select * from content where content.contentid=? and content.userid=?"
+	var contents []*Content
+	_, err = db.Select(&contents, query, contentId, user.UserId)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, ocorreu um erro ao buscar seu conteudo no banco. %s.", err)))
+		return
+	}
+
+	if len(contents) == 0 {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas nao foi encontrado um conteudo seu com o ContentId %s informado.", contentId)))
+		return
+	}
+
+	oldContent := contents[0]
+
+	if err := req.ParseMultipartForm(MAX_MEMORY); err != nil {
+		r.JSON(http.StatusForbidden, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, nao foi possivel receber seu arquivo.", err)))
+		return
+	}
+
+	for key, value := range req.MultipartForm.Value {
+		log.Printf("FILE: %s:%s", key, value)
+	}
+
+	for _, fileHeaders := range req.MultipartForm.File {
+		for _, fileHeader := range fileHeaders {
+			file, _ := fileHeader.Open()
+			path := fmt.Sprintf("public/%s", fileHeader.Filename)
+			buf, _ := ioutil.ReadAll(file)
+			ioutil.WriteFile(path, buf, os.ModePerm)
+		}
+	}
+
+	// Updating fields on saved content
+	oldContent.ImageId = "NEWIMAGEID"
+
+	log.Printf("oldContent: %#v\n", oldContent)
+
+	// count, err := db.Update(oldContent)
+	// if err != nil {
+	// 	log.Printf("Erro: %#v", err)
+	// 	r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+	// 		"Desculpe, mas ocorreu um erro ao tentar atualizar seu conteudo. %s.", err)))
+	// 	return
+	// }
+	// if count == 0 {
+	// 	r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+	// 		"Desculpe, mas seu conteudo nao foi atualizado.")))
+	// 	return
+	// }
+
+	r.JSON(http.StatusOK, oldContent)
+	return
 }
 
 func updateContent(db DB, auth Auth, params martini.Params, r render.Render, req *http.Request) {
