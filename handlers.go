@@ -14,9 +14,20 @@ import (
 	"github.com/martini-contrib/render"
 )
 
-func getAllChannels(db DB, r render.Render) {
+func getAllChannels(db DB, r render.Render, req *http.Request) {
+	qs := req.URL.Query()
+	order := qs.Get("order")
+	log.Printf("ORDER: %v \n", order)
 	var channels []Channel
-	_, err := db.Select(&channels, "select * from channel")
+	query := "select * from channel"
+
+	if order == "channelname" {
+		query += " order by channelname asc"
+	} else if order == "-channelname" {
+		query += " order by channelname desc"
+	}
+
+	_, err := db.Select(&channels, query)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, ocorreu um erro ao selecionar a lista de canais %s.", err)))

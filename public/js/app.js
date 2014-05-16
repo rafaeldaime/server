@@ -7,6 +7,7 @@ var app = angular.module('app', [
   'ngCookies',
   'restangular',
   'angularFileUpload',
+  'ui.bootstrap',
   'app.filters',
   'app.services',
   'app.directives',
@@ -79,61 +80,28 @@ app.run(function ($rootScope, $http, $cookies, Restangular) {
 	}
 });
 
-app.controller('AppController', function($scope, $timeout, $cookies, Restangular) {
-	$scope.error = null;
-	$scope.message = null;
-	$scope.spinner = false;
-	$scope.timeFormat = "'Publicado' d-MM-yy 'às' HH:mm"
+app.controller('AppController', function($rootScope, $scope, $timeout, $cookies, $modal, $log, Restangular, $controller ) {
+	$scope.timeFormat = "'Publicado' d-MM-yy 'às' HH:mm";
+	$scope.isChannelsCollapsed = true;
 
-	
-	$scope.channels = Restangular.all('channels').getList().$object;
+	Restangular.all('channels').getList({order: "channelname"}).then(function (channels) {
+		$rootScope.channels = channels;
+		$scope.channelsSlice1 = channels.slice(0, channels.length/4);
+		$scope.channelsSlice2 = channels.slice(channels.length/4, channels.length/2);
+		$scope.channelsSlice3 = channels.slice(channels.length/2, channels.length*3/4);
+		$scope.channelsSlice4 = channels.slice(channels.length*3/4, channels.length);
+	});
 
 
 
-
-
-
-	$scope.newMessage = function (message) {
-		$scope.message = message;
-		$timeout(function () {
-			$scope.message = null;
-		}, 5000);
-	}
-
-	$scope.newError = function (error) {
-		if (!error) { // Creating a default error
-			$scope.error =  {
-				error: {
-	    			code: 1,
-	    			message: "Ocorreu um erro inesperado!"
-	    		}
-			}
-		} else if (error.error) { // It's an error object
-			$scope.error = error;
-		}
-		else { // New error with the error sent
-			$scope.error =  {
-				error: {
-	    			code: 1,
-	    			message: error
-	    		}
-			}
-		}
-		$timeout(function () {
-			$scope.erro = null;
-		}, 5000);
-	}
-
-	// Check if there is an error or message in this session
-	if ($cookies.message) {
-		$scope.newMessage($cookies.message);
-		delete $cookies.message;
-	}
-	if ($cookies.error) {
-		$scope.newError($cookies.error);
-		delete $cookies.error;
-	}
-
+  $scope.newPost = function () {
+    var modalInstance = $modal.open({
+      templateUrl: 'view/newpost.html',
+      controller: 'ContentController',
+      size: 'lg'
+    });
+  };
 
 
 });
+

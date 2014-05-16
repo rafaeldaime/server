@@ -2,18 +2,38 @@
 
 /* Controllers */
 
-angular.module('app.controllers', [])
+controllers = angular.module('app.controllers', []);
 
 
-  .controller('CenterController', function($scope) {
+controllers.controller('CenterController', function($scope) {
 
-  })
+  });
 
 
-  .controller('ContentController', function($scope, Restangular, $upload) {
+
+
+
+
+var ContentController = controllers.controller('ContentController', function($scope, Restangular, $upload, $modalInstance) {
   	$scope.usercontent = null;
 	$scope.channelid = '';
 	$scope.fullurl = "http://";
+
+	console.log($scope.me);
+	console.log($scope.channels);
+
+
+
+
+  $scope.ok = function () {
+    $modalInstance.close();
+  };
+
+  $scope.cancel = function () {
+    $modalInstance.dismiss();
+  };
+
+
 
 
 	// DEBUG !!!

@@ -1,42 +1,125 @@
 <!DOCTYPE html>
 <html lang="pt-BR" ng-app="app">
   <head>
-  	<meta charset="utf-8"/>
-  	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+  	<meta charset="utf-8">
+  	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
 
   	<title>Tur.ma</title>
   	<meta name="description" content="O que a turma ta dizendo porai?!">
   	<meta name="keywords" content="Tur.ma, conteudo, comentario, social">
-  	<meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="author" content="Rafael Henrique Moreira">
 
- 	<link href="favicon.ico" rel="shortcut icon" type="image/x-icon">
+ 	  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
 
+    <link rel="stylesheet" href="css/lib/bootstrap.min.css">
   	<link rel="stylesheet" href="css/app.css">
 
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
   </head>
+
   <body ng-controller="AppController">
 
-    <!--[if lt IE 7]>
-    <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
-    <![endif]-->
+  <!--[if lt IE 7]>
+  <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+  <![endif]-->
+
+
+
+  <!-- Fixed navbar -->
+  <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- This button shows when the navigation colapse -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="#">TURMA</a>
+      </div>
+      <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="#" ng-click="isChannelsCollapsed = !isChannelsCollapsed">CANAIS</a></li>
+          <li>
+            <div class="navbar-form input-group">
+              <input type="text" class="form-control">
+              <span class="input-group-addon glyphicon glyphicon-search"></span>
+            </div>
+          </li>
+        </ul>
+
+
+
+
+
+        <ul ng-hide="me" class="nav navbar-nav navbar-right">
+          <li><img src="pic/default.png"></li>
+          <li ><a class="navbar-link" href="/login" popover-trigger="mouseenter" popover-placement="bottom" popover="FaceBook!">LOGIN</a></li>
+        </ul>
+
+        <ul ng-show="me" class="nav navbar-nav navbar-right">
+          <li ><a class="navbar-link" href="#" ng-click="newPost()">PUBLICAR</a></li>
+          <li><img ng-src="{{ me | userpicsrc }}"></li>
+          <li ><a class="navbar-link" href="#" ng-click="logout()">LOGOUT</a></li>
+        </ul>
+
+      </div><!--/.nav-collapse -->
+    </div>
+  </div>
+
+
+
+
+
+
+
+  <div class="container-fluid channels-container" collapse="isChannelsCollapsed">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-3">
+          <ul class="list-unstyled channels-list">
+            <li ng-repeat="channel in channelsSlice1">
+              <a ng-href="/#/{{ channel.channelslug }}">{{ channel.channelname }}</a>
+            </li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <ul class="list-unstyled channels-list">
+            <li ng-repeat="channel in channelsSlice2">
+              <a ng-href="/#/{{ channel.channelslug }}">{{ channel.channelname }}</a>
+            </li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <ul class="list-unstyled channels-list">
+            <li ng-repeat="channel in channelsSlice3">
+              <a ng-href="/#/{{ channel.channelslug }}">{{ channel.channelname }}</a>
+            </li>
+          </ul>
+        </div>
+        <div class="col-md-3">
+          <ul class="list-unstyled channels-list">
+            <li ng-repeat="channel in channelsSlice4">
+              <a ng-href="/#/{{ channel.channelslug }}">{{ channel.channelname }}</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
 
 
   <!-- My main content will be hidden until all content has been loaded -->
-  <div class="content-main" ng-cloak class="ng-cloak">
-
-    <div ng-show="spinner" class="spinner"></div>
-
-    <div ng-show="error" class="error">
-      <h3>ERRO</h3>
-      <div ng-click="error=null">X</div>
-      <span ng-bind="error.error.message"></span>
-    </div>
-
-    <div ng-show="message" class="message">
-      <h3>...</h3>
-      <div ng-click="message=null">X</div>
-      <span ng-bind="message"></span>
-    </div>
+  <div class="container ng-cloak" ng-cloak >
 
 
 
@@ -44,156 +127,14 @@
 
 
 
-    <span ng-hide="me">
-      <img src="pic/default.png">
-      Anonimo
-      <a href="/login">login</a>.
-    </span>
-    <span ng-show="me">
-      <img ng-src="{{ me | userpicsrc }}">
-      {{ me.fullname }}
-      <a href="#" ng-click="logout()">logout</a>
-    </span>
-
-
-
-
-    <ul class="channels">
-      <li ng-repeat="channel in channels">
-        <a ng-href="/#/{{ channel.channelslug }}">{{ channel.channelname }}</a>
-      </li>
-    </ul>
-
-
-    <!-- ContentController to add/edit contents added by user -->
-    <div ng-controller="ContentController" ng-show="me">
-
-      <h3>Adicione um conteudo da Internet</h3>
-      <form  ng-hide="usercontent" name="createContentForm" ng-submit="createContent()" novalidate>
-
-          Canal:
-          <select name="channelid" ng-model="channelid" ng-disabled="usercontent" required>
-            <option ng-repeat="channel in channels" value="{{ channel.channelid }}">
-              {{ channel.channelname }}
-            </option>
-          </select >
-
-          URL:
-          <input type="text" name="url" ng-model="fullurl" ng-change="checkFullUrl()" ng-disabled="usercontent" required ng-click="debug()" />
-
-          <button ng-hide="usercontent" ng-disabled="createContentForm.$invalid">
-            Adicionar
-          </button>
-
-         
-
-          <p ng-show="!usercontent && channelid == '' && (fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
-            Insira a URL e o Canal do conteudo que deseja nos enviar.
-          </p>
-          <p ng-show="!usercontent && channelid == '' && (fullurl != 'http://' && !createContentForm.url.$error.required)" class="help-block">
-            Escolha o Canal que deseja que o conteudo apareca.
-          </p>
-          <p ng-show="!usercontent && channelid != '' && (fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
-            Digite a URL do conteudo que deseja enviar.
-          </p>
-          <p ng-show="!usercontent && channelid != '' && (fullurl != 'http://' && !createContentForm.url.$error.required)" class="help-block">
-            Quando estiver pronto, clique no botao para enviar o conteudo.
-          </p>
-          <p ng-show="usercontent" class="help-block">
-            Agora voce pode ver e editar as informacoes do seu novo conteudo.
-          </p>
-        
-      </form>
-
-
-
-
-  
-      <!-- User Content removed...
-          <h1 class="object-hed" ng-bind="usercontent | get:this:'channelname'">
-          </h1>
-       -->
-
-      <!-- User Content -->
-      <section ng-if="usercontent" class="content-list">
-        <header class="object-header">
-
-          <input class="content-button" type="reset" ng-click="closeContent()" value="Pronto!"/>
-
-
-          <select class="content-header-channel" ng-model="usercontent.channelid">
-            <option ng-repeat="channel in channels" value="{{ channel.channelid }}"  ng-selected="channel.channelid == usercontent.channelid">
-              {{ channel.channelname }}
-            </option>
-          </select >
-
-
- 
-
-        </header>
-
-        <article class="content-container">
-
-            <div class="content-location">
-              <span class="content-location-address" ng-bind="usercontent | get:this:'channelslug'">
-              </span>/<span class="content-location-address" ng-bind="usercontent.slug | strLimit:60"></span>
-            </div>
 
 
 
 
 
 
-          <div class="content-image content-image-small">
-            <a class="content-link" href="#" >
-              <img contentimageeditable="true" ng-model="inputelement" ng-src="{{ usercontent | contentimagesrc:'small' }}" />
-            </a>
-            <input class="invisible" type="file" ng-file-select="onFileSelect($files)" inputfile="true" ng-model="inputelement"/>
-          </div>
 
 
-
-
-
-          <div class="content-content">
-
-
-
-
-
-            <header class="content-header">
-              <h2 class="content-title" itemprop="headline">
-                <a class="content-title-link content-link" contenteditable="true" title="true" ng-model="usercontent.title" href="#"></a>
-              </h2>
-              <div class="content-meta">
-                <span class="content-score">10mil gostaram</span>
-                <span class="content-meta-item">
-                  <a class="content-meta-item-link" ng-bind="usercontent.creation | date : timeFormat" href="#">
-                  </a>
-                </span>
-              </div>
-            </header>
-            
-            <p class="content-description" contenteditable="true" description="true" ng-model="usercontent.description"></p>
-
-            <div class="content-host">
-              <a class="content-host-link" ng-bind="usercontent.host"></a>
-            </div>
-          </div>
-
-        </article>
-
-      </section>
-      <!-- End of User Content -->
-
-
-
-
-            <p><a ng-href="#/conteudo/{{ usercontent.slug }}">... ir para a pagina do conteudo</a></p>
-
-
-    </div>
-    <!-- End of ContentController -->
 
 
 
@@ -224,20 +165,22 @@
 
   
 
-  </div> <!-- End of my main content -->
+  </div> <!-- End of my main content, hidden until all full loaded -->
   <script>
     FileAPI = {
-      jsUrl: 'js/lib/upload/yourcdn.com/js/FileAPI.min.js',
+      jsPath: 'js/lib/upload/', 
       staticPath: 'js/lib/upload/'
     }
   </script>
-  <script src="js/lib/lodash.js"></script>
+  <script src="js/lib/lodash.min.js"></script>
   <script src="js/lib/jquery-2.1.1.min.js"></script>
+  <script src="js/lib/bootstrap.min.js"></script>
   <script src="js/lib/upload/angular-file-upload-shim.min.js"></script>
-  <script src="js/angular/angular.js"></script>
-  <script src="js/angular/angular-route.js"></script>
-  <script src="js/angular/angular-cookies.js"></script>
-  <script src="js/lib/restangular.js"></script>
+  <script src="js/lib/angular.min.js"></script>
+  <script src="js/lib/angular-route.min.js"></script>
+  <script src="js/lib/angular-cookies.min.js"></script>
+  <script src="js/lib/restangular.min.js"></script>
+  <script src="js/lib/ui-bootstrap-tpls-0.11.0.min.js"></script> 
   <script src="js/lib/upload/angular-file-upload.min.js"></script> 
 
   <script src="js/app.js"></script>
@@ -245,5 +188,8 @@
   <script src="js/controllers.js"></script>
   <script src="js/filters.js"></script>
   <script src="js/directives.js"></script>
+  <script src="js/controller/newpost.js"></script>
+
+
   </body>
 </html>
