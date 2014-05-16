@@ -128,7 +128,7 @@
           </select >
 
 
-
+ 
 
         </header>
 
@@ -140,12 +140,20 @@
             </div>
 
 
+
+
+
+
           <div class="content-image content-image-small">
-            <a class="content-link" href="#" ng-click="triggerImageUpload()">
-              <img ng-src="{{ usercontent | contentimagesrc:'small' }}" />
+            <a class="content-link" href="#" >
+              <img contentimageeditable="true" ng-model="inputelement" ng-src="{{ usercontent | contentimagesrc:'small' }}" />
             </a>
-            <input id="usercontent-imageinput" type="file" ng-file-select="onFileSelect($files)" style="display: none;" />
+            <input class="invisible" type="file" ng-file-select="onFileSelect($files)" inputfile="true" ng-model="inputelement"/>
           </div>
+
+
+
+
 
           <div class="content-content">
 
@@ -223,8 +231,8 @@
       staticPath: 'js/lib/upload/'
     }
   </script>
-  <script src="js/lib/jquery-2.1.1.min.js"></script>
   <script src="js/lib/lodash.js"></script>
+  <script src="js/lib/jquery-2.1.1.min.js"></script>
   <script src="js/lib/upload/angular-file-upload-shim.min.js"></script>
   <script src="js/angular/angular.js"></script>
   <script src="js/angular/angular-route.js"></script>

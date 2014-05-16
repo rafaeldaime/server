@@ -14,6 +14,42 @@
 
 var directives = angular.module('app.directives', []);
 
+
+
+directives.directive('inputfile', function(){
+    return{
+        restrict: 'A', // only activate on element attribute
+        require: '?ngModel', // get a hold of NgModelController
+        link: function($scope, element, attrs, ngModel){
+            if(!ngModel) return; // do nothing if no ng-model
+
+            // view -> model
+            element.bind('click', function() {
+                console.log("Finally clicked on inputfile");
+                console.log(element);
+            });
+
+            ngModel.$setViewValue(element);
+
+        }
+    }
+});
+
+directives.directive('contentimageeditable', function(){
+    return{
+        restrict: 'A', // only activate on element attribute
+        require: '?ngModel', // get a hold of NgModelController
+        link: function($scope, element, attrs, ngModel){
+            element.bind('click', function(){
+                angular.element(ngModel.$viewValue).trigger('click');
+                console.log('CLICKED ON INPOT CONTENT IMAGE');
+                console.log(ngModel.$viewValue);
+            });
+        }
+    }
+});
+
+
 directives.directive('contenteditable', function() {
     return {
 		restrict: 'A', // only activate on element attribute

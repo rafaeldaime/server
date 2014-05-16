@@ -18,6 +18,19 @@ var Env struct {
 // The only one martini instance
 var m *martini.Martini
 
+var renderOptions = render.Options{
+	// Directory to load templates. Default is "templates"
+	Directory: "templates",
+	// Extensions to parse template files from. Defaults to [".tmpl"]
+	Extensions: []string{".html"},
+	// Delims sets the action delimiters to the specified strings in the Delims struct.
+	Delims: render.Delims{Left: "%%", Right: "%%"},
+	// Appends the given charset to the Content-Type header. Default is "UTF-8".
+	Charset: "UTF-8",
+	// Outputs human readable JSON
+	IndentJSON: true,
+}
+
 func init() {
 	if martini.Env == "production" {
 		log.Println("Server in production")
@@ -40,9 +53,7 @@ func init() {
 	m.Use(martini.Static("public"))
 
 	// Render html templates from /templates directory
-	m.Use(render.Renderer(render.Options{
-		Extensions: []string{".html"},
-	}))
+	m.Use(render.Renderer(renderOptions))
 
 	// Add the AuthMiddleware
 	m.Use(OrmMiddleware)

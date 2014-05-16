@@ -66,10 +66,9 @@ angular.module('app.controllers', [])
 
 
 
-
 	$scope.triggerImageUpload = function () {
-		var imageInput = angular.element('#usercontent-imageinput');
-	    imageInput.trigger('click')
+		var imageInput = angular.element(document.querySelector( '#usercontent-imageinput' ));
+	    imageInput.trigger('click');
 	}
 
 	$scope.onFileSelect = function($files) {

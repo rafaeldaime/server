@@ -24,6 +24,10 @@ article, aside, details, figcaption, figure, footer, header, hgroup, nav, sectio
 }
 
 
+.invisible {
+    display: none;
+}
+
 .spinner {
 	position: absolute;
 	left: 50%;
