@@ -27,15 +27,14 @@ filters.filter('strLimit', function() {
 
 filters.filter('get', function() {
 	return function(content, $scope, what) {
-
-		if (what == 'channelname')
-			return _.find($scope.channels, function (channel) {
-				return channel.channelid == content.channelid
-			}).channelname
-		if (what == 'channelslug')
-			return _.find($scope.channels, function (channel) {
-				return channel.channelid == content.channelid
-			}).channelslug
+		if (what == 'categoryname')
+			return _.find($scope.categories, function (category) {
+				return category.categoryid == content.categoryid
+			}).categoryname
+		if (what == 'categoryslug')
+			return _.find($scope.categories, function (category) {
+				return category.categoryid == content.categoryid
+			}).categoryslug
 	};
 });
 

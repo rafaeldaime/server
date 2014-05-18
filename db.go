@@ -9,6 +9,7 @@ import (
 
 	"github.com/coopernurse/gorp"
 	"github.com/dchest/uniuri"
+	"github.com/extemporalgenome/slug"
 	"github.com/go-martini/martini"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -56,7 +57,7 @@ func init() {
 	dbmap.AddTableWithName(Profile{}, "profile").SetKeys(false, "profileid")
 	dbmap.AddTableWithName(Pic{}, "pic").SetKeys(false, "picid")
 	dbmap.AddTableWithName(Token{}, "token").SetKeys(false, "tokenid")
-	dbmap.AddTableWithName(Channel{}, "channel").SetKeys(false, "channelid")
+	dbmap.AddTableWithName(Category{}, "category").SetKeys(false, "categoryid")
 	dbmap.AddTableWithName(Image{}, "image").SetKeys(false, "imageid")
 	dbmap.AddTableWithName(Url{}, "url").SetKeys(false, "urlid")
 	dbmap.AddTableWithName(Content{}, "content").SetKeys(false, "contentid")
@@ -72,7 +73,7 @@ func init() {
 
 	checkAndCreateAdminUser(db)
 
-	checkAndCreateChannels(db)
+	checkAndCreateCategories(db)
 
 	log.Println("All default values has been created.")
 
@@ -156,32 +157,37 @@ func checkAndCreateAdminUser(db DB) {
 	}
 }
 
-func checkAndCreateChannels(db DB) {
-	for i, channelName := range channelList {
-		channelSlug := slugList[i]
-		count, err := db.SelectInt("select count(*) from channel where channelslug=?", channelSlug)
-		if err == nil {
-			if count == 0 {
-				channel := &Channel{
-					ChannelId:   uniuri.NewLen(20),
-					ChannelName: channelName,
-					ChannelSlug: channelSlug,
-					LikeCount:   0,
-				}
-				err := db.Insert(channel)
-				if err != nil {
-					log.Printf("Error when creating the channel %s. %s\n", channel.ChannelName, err)
-				} else {
-					log.Printf("Channel %s created!\n", channel.ChannelName)
-				}
+func checkAndCreateCategories(db DB) {
+	for i, categoryName := range categoryList {
+		categorySlug := slug.Slug(categoryName)
+		count, err := db.SelectInt("select count(*) from category where categoryslug=?", categorySlug)
+		if err != nil {
+			log.Printf("Error searching for the category with categorySlug %s\n", categorySlug)
+			log.Println("Stopping the creation of categories")
+			return
+		}
+		if count == 0 {
+			category := &Category{
+				CategoryId:   uniuri.NewLen(20),
+				CategoryName: categoryName,
+				CategorySlug: categorySlug,
+				LikeCount:    0,
 			}
-		} else {
-			log.Printf("Error searching for the channel with channelslug %s\n", channelSlug)
+			if i == 0 { // "Sem Categoria" is my default category
+				category.CategoryId = "default"
+			}
+			err := db.Insert(category)
+			if err != nil {
+				log.Printf("Error when creating the category %s. %s\n", category.CategoryName, err)
+			} else {
+				log.Printf("Category %s created!\n", category.CategoryName)
+			}
 		}
 	}
 }
 
-var channelList = []string{
+var categoryList = []string{
+	"Sem categoria",
 	"Animais",
 	"Arte e Cultura",
 	"Beleza e Estilo",
@@ -215,40 +221,4 @@ var channelList = []string{
 	"Saúde",
 	"Turismo e Viagem",
 	"Vídeos",
-}
-
-var slugList = []string{
-	"Animais",
-	"Arte-e-Cultura",
-	"Beleza-e-Estilo",
-	"Carros-e-Motos",
-	"Casa-e-Decoracao",
-	"Ciencia-e-Tecnologia",
-	"Comidas-e-Bebidas",
-	"Criancas",
-	"Curiosidades",
-	"Downloads",
-	"Educacao",
-	"Entretenimento",
-	"Esporte",
-	"Eventos",
-	"Familia",
-	"Filmes",
-	"Fotos",
-	"Futebol",
-	"Humor",
-	"Internacional",
-	"Internet",
-	"Jogos",
-	"Livro",
-	"Meio-ambiente",
-	"Mulher",
-	"Musica",
-	"Negocios",
-	"Noticias",
-	"Pessoas-e-Blogs",
-	"Politica",
-	"Saude",
-	"Turismo-e-Viagem",
-	"Videos",
 }

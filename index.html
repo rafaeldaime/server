@@ -43,31 +43,57 @@
         </button>
         <a class="navbar-brand" href="#">TURMA</a>
       </div>
+
+
+
+
+
+
+
       <div class="navbar-collapse collapse">
-        <ul class="nav navbar-nav">
-          <li><a href="#" ng-click="isChannelsCollapsed = !isChannelsCollapsed">CANAIS</a></li>
-          <li>
+
+
+      <ul class="nav navbar-nav">
+        <li><a href="#" ng-click="isCategoriesCollapsed = !isCategoriesCollapsed">CATEGORIAS</a></li>
+      </ul>
+
+
+
+      <ul class="nav navbar-nav navbar-right">
+        <li ng-hide="!isSearchHidden">
+          <button ng-click="isSearchHidden = false" type="button" class="btn btn-default navbar-btn glyphicon glyphicon-search"></button>
+        </li>
+        <li ng-hide="isSearchHidden" ng-mouseleave="isSearchHidden = true">
+          <div class="navbar-form input-group">
+            <input ng-blur="isSearchHidden = true" type="text" class="form-control">
+            <span class="input-group-addon glyphicon glyphicon-search"></span>
+          </div>
+        </li>
+      </ul>
+
+      <ul ng-hide="me || !isSearchHidden" class="nav navbar-nav navbar-right">
+        <li><img  class="hidden-xs hidden-sm" src="pic/default.png"></li>
+        <li ><a class="navbar-link" href="/login" popover-trigger="mouseenter" popover-placement="bottom" popover="FACEBOOK!">LOGIN</a></li>
+      </ul>
+
+      <ul ng-show="me && isSearchHidden" class="nav navbar-nav navbar-right">
+        <li>
+
+          <form ng-hide="isPostHidden" ng-submit="newPost()" class="navbar-form" ng-mouseleave="isPostHidden = true">
             <div class="navbar-form input-group">
-              <input type="text" class="form-control">
-              <span class="input-group-addon glyphicon glyphicon-search"></span>
+                <span class="input-group-addon btn btn-default glyphicon glyphicon glyphicon-upload readOnly" ng-show="isPosting" disabled="true"></span>
+                <input placeholder="URL para publicar..." ng-model="postUrl" type="text" class="form-control" ng-disabled="isPosting">
+                <span class="input-group-addon btn btn-info glyphicon glyphicon-plus" ng-click="newPost()" ng-disabled="isPosting"></span>
             </div>
-          </li>
-        </ul>
+          </form>
+          <button ng-show="isPostHidden" ng-click="isPostHidden = false" type="button" class="btn btn-info navbar-btn glyphicon glyphicon-plus"></button>
 
+        </li>
+        <li><img ng-src="{{ me | userpicsrc }}"></li>
+        <li ><a class="navbar-link" href="#" ng-click="logout()">LOGOUT</a></li>
+      </ul>
 
-
-
-
-        <ul ng-hide="me" class="nav navbar-nav navbar-right">
-          <li><img src="pic/default.png"></li>
-          <li ><a class="navbar-link" href="/login" popover-trigger="mouseenter" popover-placement="bottom" popover="FaceBook!">LOGIN</a></li>
-        </ul>
-
-        <ul ng-show="me" class="nav navbar-nav navbar-right">
-          <li ><a class="navbar-link" href="#" ng-click="newPost()">PUBLICAR</a></li>
-          <li><img ng-src="{{ me | userpicsrc }}"></li>
-          <li ><a class="navbar-link" href="#" ng-click="logout()">LOGOUT</a></li>
-        </ul>
+      
 
       </div><!--/.nav-collapse -->
     </div>
@@ -79,34 +105,34 @@
 
 
 
-  <div class="container-fluid channels-container" collapse="isChannelsCollapsed">
+  <div class="container-fluid categories-container" collapse="isCategoriesCollapsed">
     <div class="container">
       <div class="row">
         <div class="col-md-3">
-          <ul class="list-unstyled channels-list">
-            <li ng-repeat="channel in channelsSlice1">
-              <a ng-href="/#/{{ channel.channelslug }}">{{ channel.channelname }}</a>
+          <ul class="list-unstyled categories-list">
+            <li ng-repeat="category in categoriesSlice1">
+              <a ng-href="/#/{{ category.categoryslug }}">{{ category.categoryname }}</a>
             </li>
           </ul>
         </div>
         <div class="col-md-3">
-          <ul class="list-unstyled channels-list">
-            <li ng-repeat="channel in channelsSlice2">
-              <a ng-href="/#/{{ channel.channelslug }}">{{ channel.channelname }}</a>
+          <ul class="list-unstyled categories-list">
+            <li ng-repeat="category in categoriesSlice2">
+              <a ng-href="/#/{{ category.categoryslug }}">{{ category.categoryname }}</a>
             </li>
           </ul>
         </div>
         <div class="col-md-3">
-          <ul class="list-unstyled channels-list">
-            <li ng-repeat="channel in channelsSlice3">
-              <a ng-href="/#/{{ channel.channelslug }}">{{ channel.channelname }}</a>
+          <ul class="list-unstyled categories-list">
+            <li ng-repeat="category in categoriesSlice3">
+              <a ng-href="/#/{{ category.categoryslug }}">{{ category.categoryname }}</a>
             </li>
           </ul>
         </div>
         <div class="col-md-3">
-          <ul class="list-unstyled channels-list">
-            <li ng-repeat="channel in channelsSlice4">
-              <a ng-href="/#/{{ channel.channelslug }}">{{ channel.channelname }}</a>
+          <ul class="list-unstyled categories-list">
+            <li ng-repeat="category in categoriesSlice4">
+              <a ng-href="/#/{{ category.categoryslug }}">{{ category.categoryname }}</a>
             </li>
           </ul>
         </div>
@@ -119,49 +145,19 @@
 
 
   <!-- My main content will be hidden until all content has been loaded -->
-  <div class="container ng-cloak" ng-cloak >
+  <div class="container main-container ng-cloak" ng-cloak >
+
+
+    <!-- Alert's exhibitions -->
+    <alert ng-repeat="alert in alerts" type="{{alert.type}}" close="closeAlert($index)">{{alert.msg}}</alert>
 
 
 
 
+    <div ui-view></div>
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-    <p>debug:<pre ng-bind="me | json"></pre></p>
-
-    <br/>
-    <br/>
-    <br/>
-    <br/>
-
-    <p>Teste:"<span ng-bind="fullurl"></span>"</p>
-
-
-    <!-- HOW TO WORK WITH IMAGES:
-
-<h2 contentEditable="true" strip-br="true" ng-model="usercontent.contentid">bbb</h2>
-
-    <img ng-if="content | contenthasimage:'large'" ng-src="{{ content | contentimagesrc:'large' }}" />
-
-    -->
-
-
-
-    <div ng-view></div>
-
-    
 
   
 
@@ -177,7 +173,7 @@
   <script src="js/lib/bootstrap.min.js"></script>
   <script src="js/lib/upload/angular-file-upload-shim.min.js"></script>
   <script src="js/lib/angular.min.js"></script>
-  <script src="js/lib/angular-route.min.js"></script>
+  <script src="js/lib/angular-ui-router.min.js"></script>
   <script src="js/lib/angular-cookies.min.js"></script>
   <script src="js/lib/restangular.min.js"></script>
   <script src="js/lib/ui-bootstrap-tpls-0.11.0.min.js"></script> 
@@ -188,7 +184,6 @@
   <script src="js/controllers.js"></script>
   <script src="js/filters.js"></script>
   <script src="js/directives.js"></script>
-  <script src="js/controller/newpost.js"></script>
 
 
   </body>

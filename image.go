@@ -68,7 +68,7 @@ func SaveImage(file io.Reader) (*Image, error) {
 
 	// We will save 3 resized images
 	sizes := [...]string{"small", "medium", "large"}
-	dimensions := [...]dimension{{232, 126}, {312, 170}, {660, 360}}
+	dimensions := [...]dimension{{233, 127}, {358, 195}, {660, 360}}
 
 	// We will save the Thumbnails just if the original image
 	// dimension is bigger or equals than the thumbnail dimension
@@ -81,7 +81,8 @@ func SaveImage(file io.Reader) (*Image, error) {
 		// log.Printf("Trying to save img size %d, widthRatio: %f, heightRatio: %f\n", size, widthRatio, heightRatio)
 
 		// We will resize and crop just images bigger than thumbnail in both dimensions
-		if size == "small" || (widthRatio >= 1 && heightRatio >= 1) {
+		// If image isn't bigger enought, so we will not take the large image
+		if size == "small" || size == "medium" || (widthRatio >= 1 && heightRatio >= 1) {
 			maxSize = size
 			// Below the values to the image be resized after be cropped
 			// If resized width or height == 0, so the proportion will be conserved
@@ -126,8 +127,16 @@ func SaveImage(file io.Reader) (*Image, error) {
 
 			} else {
 				// If the image isn't bigger in both directions
-				// We will enter here just if its the small size image
+				// We will enter here just if its the small/medium size image
 
+				if originalHeight < newHeight {
+					// If this image isn't taller enought
+					newHeight = originalHeight
+				}
+				if originalWidht < newWidth {
+					// If this image isn't large enought
+					newWidth = originalWidht
+				}
 				// If image still bigger, lets crop it to the right size
 				croppedImg, err := cutter.Crop(originalImg, cutter.Config{
 					Width:  newWidth,

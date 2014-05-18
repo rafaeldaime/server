@@ -236,7 +236,7 @@ func CreateContent(db DB, user *User, url *Url, img *Image, content *Content) (*
 	newContent := &Content{
 		ContentId:   contentId,
 		UrlId:       url.UrlId,
-		ChannelId:   content.ChannelId,
+		CategoryId:  "default", // First category will be "Sem categoria"
 		Title:       content.Title,
 		Slug:        newSlug,
 		Description: content.Description,

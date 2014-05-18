@@ -1,133 +1,59 @@
-<div class="container-fluid ng-cloak" ng-cloak >
+<div class="container-fluid ng-cloak modal-container" ng-cloak >
+  <!-- User Content -->
+  <section class="content-list">
+    <header class="object-header">
+      <select class="content-header-category" ng-model="content.categoryid">
+        <option ng-repeat="category in categories" value="{{ category.categoryid }}"  ng-selected="category.categoryid == content.categoryid">
+          {{ category.categoryname }}
+        </option>
+      </select >
+    </header>
+
+    <article class="content-container">
+
+      <div class="content-location">
+        <span class="content-location-address" ng-bind="content | get:this:'categoryslug'">
+        </span>/<span class="content-location-address" ng-bind="content.slug | strLimit:60"></span>
+      </div>
 
 
-  <!-- ContentController to add/edit contents added by user -->
-  <div ng-show="me">
-
-    <h3>Publicar um conteudo</h3>
-    <form  ng-hide="usercontent" name="createContentForm" ng-submit="createContent()" novalidate>
-
-        Canal:
-        <select name="channelid" ng-model="channelid" ng-disabled="usercontent" required>
-          <option ng-repeat="channel in channels" value="{{ channel.channelid }}">
-            {{ channel.channelname }}
-          </option>
-        </select >
-
-        URL:
-        <input type="text" name="url" ng-model="fullurl" ng-change="checkFullUrl()" ng-disabled="usercontent" required ng-click="debug()" />
-
-        <button ng-hide="usercontent" ng-disabled="createContentForm.$invalid">
-          Adicionar
-        </button>
-
-       
-
-        <p ng-show="!usercontent && channelid == '' && (fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
-          Insira a URL e o Canal do conteudo que deseja nos enviar.
-        </p>
-        <p ng-show="!usercontent && channelid == '' && (fullurl != 'http://' && !createContentForm.url.$error.required)" class="help-block">
-          Escolha o Canal que deseja que o conteudo apareca.
-        </p>
-        <p ng-show="!usercontent && channelid != '' && (fullurl == 'http://' || createContentForm.url.$error.required)" class="help-block">
-          Digite a URL do conteudo que deseja enviar.
-        </p>
-        <p ng-show="!usercontent && channelid != '' && (fullurl != 'http://' && !createContentForm.url.$error.required)" class="help-block">
-          Quando estiver pronto, clique no botao para enviar o conteudo.
-        </p>
-        <p ng-show="usercontent" class="help-block">
-          Agora voce pode ver e editar as informacoes do seu novo conteudo.
-        </p>
-      
-    </form>
+      <div class="content-image content-image-small">
+        <a class="content-link" href="#" >
+          <img contentimageeditable="true" ng-model="inputelement" ng-src="{{ content | contentimagesrc:'small' }}" />
+        </a>
+        <input class="invisible" type="file" ng-file-select="onFileSelect($files)" inputfile="true" ng-model="inputelement"/>
+      </div>
 
 
+      <div class="content-content">
 
-
-
-    <!-- User Content removed...
-        <h1 class="object-hed" ng-bind="usercontent | get:this:'channelname'">
-        </h1>
-     -->
-
-    <!-- User Content -->
-    <section ng-if="usercontent" class="content-list">
-      <header class="object-header">
-
-        <input class="content-button" type="reset" ng-click="closeContent()" value="Pronto!"/>
-
-
-        <select class="content-header-channel" ng-model="usercontent.channelid">
-          <option ng-repeat="channel in channels" value="{{ channel.channelid }}"  ng-selected="channel.channelid == usercontent.channelid">
-            {{ channel.channelname }}
-          </option>
-        </select >
-
-
-
-
-      </header>
-
-      <article class="content-container">
-
-          <div class="content-location">
-            <span class="content-location-address" ng-bind="usercontent | get:this:'channelslug'">
-            </span>/<span class="content-location-address" ng-bind="usercontent.slug | strLimit:60"></span>
+        <header class="content-header">
+          <h2 class="content-title" itemprop="headline">
+            <a class="content-title-link content-link" contenteditable="true" title="true" ng-model="content.title" href="#"></a>
+          </h2>
+          <div class="content-meta">
+            <span class="content-score">10mil gostaram</span>
+            <span class="content-meta-item">
+              <a class="content-meta-item-link" ng-bind="content.creation | date : timeFormat" href="#">
+              </a>
+            </span>
           </div>
+        </header>
+        
+        <p class="content-description" contenteditable="true" description="true" ng-model="content.description"></p>
 
-
-
-
-
-
-        <div class="content-image content-image-small">
-          <a class="content-link" href="#" >
-            <img contentimageeditable="true" ng-model="inputelement" ng-src="{{ usercontent | contentimagesrc:'small' }}" />
-          </a>
-          <input class="invisible" type="file" ng-file-select="onFileSelect($files)" inputfile="true" ng-model="inputelement"/>
+        <div class="content-host">
+          <a class="content-host-link" ng-bind="content.host"></a>
         </div>
 
+      </div>
 
+    </article>
 
-
-
-        <div class="content-content">
-
-
-
-
-
-          <header class="content-header">
-            <h2 class="content-title" itemprop="headline">
-              <a class="content-title-link content-link" contenteditable="true" title="true" ng-model="usercontent.title" href="#"></a>
-            </h2>
-            <div class="content-meta">
-              <span class="content-score">10mil gostaram</span>
-              <span class="content-meta-item">
-                <a class="content-meta-item-link" ng-bind="usercontent.creation | date : timeFormat" href="#">
-                </a>
-              </span>
-            </div>
-          </header>
-          
-          <p class="content-description" contenteditable="true" description="true" ng-model="usercontent.description"></p>
-
-          <div class="content-host">
-            <a class="content-host-link" ng-bind="usercontent.host"></a>
-          </div>
-        </div>
-
-      </article>
-
-    </section>
-    <!-- End of User Content -->
-
-  </div>
-  <!-- End of ContentController -->
+  </section>
+  <!-- End of User Content -->
 
   <div class="modal-footer">
       <button class="btn btn-primary" ng-click="ok()">OK</button>
-      <button class="btn btn-warning" ng-click="cancel()">Cancel</button>
   </div>
-
 </div>

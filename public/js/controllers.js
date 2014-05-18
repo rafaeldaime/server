@@ -5,102 +5,59 @@
 controllers = angular.module('app.controllers', []);
 
 
-controllers.controller('CenterController', function($scope) {
-
-  });
-
-
-
-
-
-
-var ContentController = controllers.controller('ContentController', function($scope, Restangular, $upload, $modalInstance) {
-  	$scope.usercontent = null;
-	$scope.channelid = '';
-	$scope.fullurl = "http://";
-
-	console.log($scope.me);
-	console.log($scope.channels);
-
-
-
-
-  $scope.ok = function () {
-    $modalInstance.close();
-  };
-
-  $scope.cancel = function () {
-    $modalInstance.dismiss();
-  };
-
-
-
-
-	// DEBUG !!!
-	$scope.debug = function () {
-		$scope.fullurl = "http://digg.com/tag/news";
-		$scope.channelid = _.first($scope.channels).channelid;
-	}
-
-	$scope.checkFullUrl = function () {
-		// If user paste an URL in the input form that contains the https,
-		// than we need to remove de duplicated https.
-		if ($scope.fullurl.match(/^(https?:\/\/)(https?:\/\/)/)) {
-			$scope.fullurl = $scope.fullurl.replace(/^(https?:\/\/)/, "");
+controllers.controller('HomeController', function($scope, Restangular) {
+	var getRows = function(array, columns) {
+		var rows = [];
+		var i, j, temparray, chunk = columns;
+		for (i=0,j=array.length; i<j; i+=chunk) {
+			temparray = array.slice(i, i+chunk);
+			rows.push(temparray);
 		}
-	}
+		return rows;
+	};
+	Restangular.all('contents').getList({order: "top"}).then(function (contents) {
+		$scope.contentrows = getRows(contents, 3);
+	});
+});
 
-	$scope.closeContent = function () {
-		$scope.usercontent = null;
-		$scope.channelid = '';
-		$scope.fullurl = "http://";
-	}
 
 
-	// If some attribute in users content has change, lets save it!
-	var watchAndSaveContent = function (newValue, oldValue) {
-		if (oldValue != null && newValue != null) {
-			console.log("Updating the user content!");
-			$scope.usercontent.save();
+
+
+
+var ContentController = controllers.controller('ContentController', function($scope, Restangular, $upload, $modalInstance, categories, content) {
+	$scope.content = content;
+
+	$scope.ok = function () {
+		$modalInstance.close();
+	};
+
+
+	$scope.$watch("content", function (newValue, oldValue) {
+		// Checks if it isn't a brand new content
+		if (oldValue && oldValue.cotentid == newValue.cotentid) {
+			// Let's check if user changed title, description or category
+			if (oldValue.title != newValue.title ||
+				oldValue.description != newValue.description ||
+				oldValue.categoryid != newValue.categoryid) {
+				// We should save it's new value
+				newValue.save();
+				console.log("New value saved!");
+			}
 		}
-	}
-	// Listen to changes in unsers content
-	$scope.$watch("usercontent.title", watchAndSaveContent);
-	$scope.$watch("usercontent.description", watchAndSaveContent);
-	$scope.$watch("usercontent.channelid", watchAndSaveContent);
+	}, true); // Object equality (not just reference).
 
-
-	$scope.createContent = function () {
-		$scope.spinner = true;
-		var newContentData = {
-			FullUrl: $scope.fullurl,
-			ChannelId: $scope.channelid
-		}
-		Restangular.all('contents').post(newContentData).then(function (content) {
-				$scope.usercontent = content;
-				$scope.spinner = false;
-		});
-	}
-
-
-
-
-
-	$scope.triggerImageUpload = function () {
-		var imageInput = angular.element(document.querySelector( '#usercontent-imageinput' ));
-	    imageInput.trigger('click');
-	}
 
 	$scope.onFileSelect = function($files) {
 	    //$files: an array of files selected, each file has name, size, and type.
 	    for (var i = 0; i < $files.length; i++) {
 	      var file = $files[i];
 	      $scope.upload = $upload.upload({
-	        url: 'api/contents/'+$scope.usercontent.contentid+'/image', //upload.php script, node.js route, or servlet url
+	        url: 'api/contents/'+$scope.content.contentid+'/image', //upload.php script, node.js route, or servlet url
 	        method: 'POST',
 	        // headers: {'header-key': 'header-value'},
 	        // withCredentials: true,
-	        //data: $scope.usercontent, //{myObj: $scope.myModelObj},
+	        //data: $scope.content, //{myObj: $scope.myModelObj},
 	        file: file, // or list of files: $files for html5 only
 	        /* set the file formData name ('Content-Desposition'). Default is 'file' */
 	        //fileFormDataName: myFile, //or a list of names for multiple files (html5).
@@ -112,7 +69,7 @@ var ContentController = controllers.controller('ContentController', function($sc
 	        // file is uploaded successfully
 	        console.log("Sucess!");
 	        console.log(content);
-	        $scope.usercontent.imageid = content.imageid;
+	        $scope.content.imageid = content.imageid;
 	      }).error(function(data, status, headers, config) {
 	        // file is uploaded successfully
 	        console.log("ERRO!");

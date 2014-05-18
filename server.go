@@ -81,9 +81,10 @@ func init() {
 	// Api Handlers
 	r.Get("/api/me", meHandler)
 
-	r.Get("/api/channels", getAllChannels)
+	r.Get("/api/categories", getAllCategories)
 
-	r.Post("/api/contents", createNewContent)
+	r.Post("/api/contents", addContent)
+	r.Get("/api/contents", getContents)
 	r.Put("/api/contents/:contentid", updateContent)
 	r.Post("/api/contents/:contentid/image", changeContentImage)
 

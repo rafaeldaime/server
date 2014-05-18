@@ -14,36 +14,65 @@ import (
 	"github.com/martini-contrib/render"
 )
 
-func getAllChannels(db DB, r render.Render, req *http.Request) {
+func getAllCategories(db DB, r render.Render, req *http.Request) {
 	qs := req.URL.Query()
 	order := qs.Get("order")
-	log.Printf("ORDER: %v \n", order)
-	var channels []Channel
-	query := "select * from channel"
+	log.Printf("CATEGORIES ORDER: %v \n", order)
+	var categories []Category
+	query := "select * from category"
 
-	if order == "channelname" {
-		query += " order by channelname asc"
-	} else if order == "-channelname" {
-		query += " order by channelname desc"
+	if order == "categoryname" {
+		query += " order by categoryname asc"
+	} else if order == "-categoryname" {
+		query += " order by categoryname desc"
 	}
 
-	_, err := db.Select(&channels, query)
+	_, err := db.Select(&categories, query)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Desculpe, ocorreu um erro ao selecionar a lista de canais %s.", err)))
+			"Desculpe, ocorreu um erro ao selecionar a lista de categorias %s.", err)))
 		return
 	}
-	r.JSON(http.StatusOK, channels)
+	r.JSON(http.StatusOK, categories)
 }
 
-func meHandler(auth Auth, r render.Render) {
+func getContents(db DB, r render.Render, req *http.Request) {
+	qs := req.URL.Query()
+	order := qs.Get("order")
+	log.Printf("CONTENTS ORDER: %v \n", order)
+	var fullContents []FullContent
+	query := "select * from fullcontent"
+
+	// if order == "categoryname" {
+	// 	query += " order by categoryname asc"
+	// } else if order == "-categoryname" {
+	// 	query += " order by categoryname desc"
+	// }
+
+	_, err := db.Select(&fullContents, query)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, ocorreu um erro ao buscar os conteudos completos no banco %s.", err)))
+		return
+	}
+	r.JSON(http.StatusOK, fullContents)
+}
+
+func meHandler(auth Auth, r render.Render, req *http.Request) {
 	user, err := auth.GetUser()
 	if err != nil {
-		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Voce nao esta logado! %s.", err)))
-	} else {
-		r.JSON(http.StatusOK, user)
+		header := req.Header.Get("Authorization")
+		if header != "" { // Force client to logout
+			r.JSON(419, NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Voce nao esta mais logado no sistema! %s.", err)))
+			return
+		}
+		r.JSON(403, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Voce nao esta logado no sistema! %s.", err)))
+		return
+
 	}
+	r.JSON(http.StatusOK, user)
 
 }
 
@@ -178,16 +207,16 @@ func updateContent(db DB, auth Auth, params martini.Params, r render.Render, req
 
 	oldContent := contents[0]
 
-	// Let's check if ChannelId passed by user really exists
-	obj, err := db.Get(Channel{}, content.ChannelId)
+	// Let's check if CategoryId passed by user really exists
+	obj, err := db.Get(Category{}, content.CategoryId)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Desculpe, ocorreu um erro ao buscar o canal fornecido com esse id. %s.", err)))
+			"Desculpe, ocorreu um erro ao buscar a categoria fornecida com esse id. %s.", err)))
 		return
 	}
 	if obj == nil {
-		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Desculpe, mas o channelid %s fornecido nao existe.", content.ChannelId)))
+		r.JSON(http.StatusMethodNotAllowed, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas a categoryId %s fornecida nao existe.", content.CategoryId)))
 		return
 	}
 
@@ -195,7 +224,7 @@ func updateContent(db DB, auth Auth, params martini.Params, r render.Render, req
 	content.Description = StripDescription(content.Description)
 
 	if content.Title == "" || content.Description == "" {
-		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
+		r.JSON(http.StatusMethodNotAllowed, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpa, mas o titulo e a descricao nao podem ficar vazios!")))
 		return
 	}
@@ -208,7 +237,7 @@ func updateContent(db DB, auth Auth, params martini.Params, r render.Render, req
 	}
 
 	// Updating fields on saved content
-	oldContent.ChannelId = content.ChannelId
+	oldContent.CategoryId = content.CategoryId
 	oldContent.Title = content.Title
 	oldContent.Slug = slug
 	oldContent.Description = content.Description
@@ -234,14 +263,13 @@ func updateContent(db DB, auth Auth, params martini.Params, r render.Render, req
 	return
 }
 
-type newContentDataStruct struct {
-	ChannelId string
-	FullUrl   string
+type addContentDataStruct struct {
+	FullUrl string
 }
 
-func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
-	var newContentData newContentDataStruct
-	err := json.NewDecoder(req.Body).Decode(&newContentData)
+func addContent(db DB, auth Auth, r render.Render, req *http.Request) {
+	var addContentData addContentDataStruct
+	err := json.NewDecoder(req.Body).Decode(&addContentData)
 	if err != nil {
 		body, _ := ioutil.ReadAll(req.Body)
 		r.JSON(http.StatusNotAcceptable, NewError(ErrorCodeDefault, fmt.Sprintf(
@@ -249,9 +277,9 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 		return
 	}
 
-	if newContentData.FullUrl == "" || newContentData.ChannelId == "" {
-		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Desculpa, mas os campos fullurl e/ou channelid nao foram informados!")))
+	if addContentData.FullUrl == "" {
+		r.JSON(http.StatusMethodNotAllowed, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpa, mas os campo da URL nao foi informado!")))
 		return
 	}
 
@@ -265,40 +293,28 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 
 	// If user sent us an URL without http, we will put it in the begin of URL
 	hasHtml := regexp.MustCompile(`^https?:\/\/`)
-	if !hasHtml.MatchString(newContentData.FullUrl) {
-		newContentData.FullUrl = "http://" + newContentData.FullUrl
+	if !hasHtml.MatchString(addContentData.FullUrl) {
+		addContentData.FullUrl = "http://" + addContentData.FullUrl
 	}
 
 	// Ver se ja existe um conteudo DESTE usuario com a FullUrl passada
 	query := "select content.* from content, url where content.urlid=url.urlid and content.userid=? and url.fullurl=?"
 	var contents []Content
-	_, err = db.Select(&contents, query, user.UserId, newContentData.FullUrl)
+	_, err = db.Select(&contents, query, user.UserId, addContentData.FullUrl)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, ocorreu um erro ao se verificar se ja existe um conteudo seu com essa URL. %s.", err)))
 		return
 	}
 
+	// If this content was already added by this user, lets return it
 	if len(contents) > 0 {
 		r.JSON(http.StatusOK, contents[0])
 		return
 	}
 
-	// Let's check if ChannelId passed by user really exists
-	obj, err := db.Get(Channel{}, newContentData.ChannelId)
-	if err != nil {
-		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Desculpe, ocorreu um erro ao buscar o canal fornecido com esse id. %s.", err)))
-		return
-	}
-	if obj == nil {
-		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Desculpe, mas o channelid %s fornecido nao existe.", newContentData.ChannelId)))
-		return
-	}
-
-	// Getting the content on the WEB based on the newContent.FullUrl given by user
-	content, imageUrl, err := GetContent(newContentData.FullUrl)
+	// Getting the content on the WEB based on the FullUrl given by user
+	content, imageUrl, err := GetContent(addContentData.FullUrl)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, mas ocorreu um erro ao tentar baixar o conteudo da URL informada. %s.", err)))
@@ -306,7 +322,7 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 	}
 
 	// Lets save our new URL
-	url, err := saveUrl(db, user, newContentData.FullUrl)
+	url, err := saveUrl(db, user, addContentData.FullUrl)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, mas ocorreu um erro ao tentar adicionar sua URL. %s.", err)))
@@ -322,8 +338,6 @@ func createNewContent(db DB, auth Auth, r render.Render, req *http.Request) {
 		}
 	}
 
-	// Adding the channel id passed by user
-	content.ChannelId = newContentData.ChannelId
 	content, err = CreateContent(db, user, url, img, content)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
