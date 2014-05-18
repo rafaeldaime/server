@@ -18,7 +18,7 @@
 				<div class="content-meta">
 				<span class="content-score">
 					<span class="glyphicon glyphicon-thumbs-up"></span>
-					10mil
+					{{ content.likecount }}
 				</span>
 				<span class="content-meta-item">
 				<a ng-bind="content.categoryname" ui-sref="category({ categoryslug: content.categoryslug })"></a>
@@ -34,8 +34,11 @@
 
 				<div class="content-host">
 					<span ng-show="me && content.mouseover" class="content-actions">
-						<a class="btn btn-default glyphicon glyphicon-thumbs-up"  popover-trigger="mouseenter" popover-placement="top" popover="CURTIR!"></a>
-						<a ng-show="content.userid == me.userid" class="btn btn-default glyphicon glyphicon-edit" ng-click="editPost(content)"  popover-trigger="mouseenter" popover-placement="top" popover="EDITAR!"></a>
+						<a ng-hide="content.ilike" ng-click="like(content)"  popover-trigger="mouseenter" popover-placement="top" popover="CURTIR!" class="btn btn-info glyphicon glyphicon-thumbs-up">
+						</a>
+						<a ng-show="content.ilike" ng-click="unlike(content)"  popover-trigger="mouseenter" popover-placement="top" popover="DESCURTIR!" class="btn btn-default glyphicon glyphicon-thumbs-up">
+						</a>
+						<a ng-show="content.userid == me.userid" class="btn btn-primary glyphicon glyphicon-edit" ng-click="editPost(content)"  popover-trigger="mouseenter" popover-placement="top" popover="EDITAR!"></a>
 						<a class="btn btn-danger glyphicon glyphicon-flag"  popover-trigger="mouseenter" popover-placement="top" popover="DENUNCIAR!"></a>
 					</span>
 					<span class="content-link" ng-bind="content.host"></span>

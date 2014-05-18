@@ -36,20 +36,15 @@ func getAllCategories(db DB, r render.Render, req *http.Request) {
 	r.JSON(http.StatusOK, categories)
 }
 
-func getContents(db DB, r render.Render, req *http.Request) {
+func getContents(db DB, auth Auth, r render.Render, req *http.Request) {
+	user, err := auth.GetUser()
 	qs := req.URL.Query()
 	order := qs.Get("order")
 	log.Printf("CONTENTS ORDER: %v \n", order)
-	var fullContents []FullContent
-	query := "select * from fullcontent"
+	// limit := qs.Get("limit")
+	// page := qs.Get("page")
 
-	// if order == "categoryname" {
-	// 	query += " order by categoryname asc"
-	// } else if order == "-categoryname" {
-	// 	query += " order by categoryname desc"
-	// }
-
-	_, err := db.Select(&fullContents, query)
+	fullContents, err := GetAllFullContent(db, user, 30, 1)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, ocorreu um erro ao buscar os conteudos completos no banco %s.", err)))
@@ -61,19 +56,188 @@ func getContents(db DB, r render.Render, req *http.Request) {
 func meHandler(auth Auth, r render.Render, req *http.Request) {
 	user, err := auth.GetUser()
 	if err != nil {
-		header := req.Header.Get("Authorization")
-		if header != "" { // Force client to logout
-			r.JSON(419, NewError(ErrorCodeDefault, fmt.Sprintf(
-				"Voce nao esta mais logado no sistema! %s.", err)))
-			return
-		}
-		r.JSON(403, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Voce nao esta logado no sistema! %s.", err)))
+		// Can't continue without the user
+		// Abort, so AuthMiddleware could alert the user for credentials requirement
 		return
-
 	}
 	r.JSON(http.StatusOK, user)
 
+}
+
+type LikeReturn struct {
+	ContentId string `json:"contentid"`
+	LikeCount int    `json:"likecount"`
+	ILike     bool   `json:"ilike"`
+}
+
+func AddLikeHandler(db DB, auth Auth, r render.Render, req *http.Request, params martini.Params) {
+	user, err := auth.GetUser()
+	if err != nil {
+		return // AuthMiddleware will response user
+	}
+
+	contentId := params["contentid"]
+	incr := false // Is it necessary to update content's likecount?
+
+	// Let's select if this contentid really exists
+	contentobj, err := db.Get(Content{}, contentId)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas ocorreu um erro ao se buscar o conteudo desejado. %s.", err)))
+		return
+	}
+
+	if contentobj == nil {
+		r.JSON(http.StatusForbidden, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas o contentid %s informado nao foi encontrado.", contentId)))
+		return
+	}
+
+	content := contentobj.(*Content)
+
+	likeobj, err := db.Get(ContentLike{}, contentId, user.UserId)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas ocorreu um erro ao se buscar o contentlike desejado. %s.", err)))
+		return
+	}
+
+	if likeobj == nil {
+		contentLike := &ContentLike{
+			ContentId:  contentId,
+			UserId:     user.UserId,
+			Creation:   time.Now(),
+			LastUpdate: time.Now(),
+			Deleted:    false,
+		}
+		err = db.Insert(contentLike)
+		if err != nil {
+			r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, mas ocorreu um erro adicionar seu like. %s.", err)))
+			return
+		}
+		incr = true // Updates contents like
+	} else {
+		contentLike := likeobj.(*ContentLike)
+		if contentLike.Deleted == true {
+			contentLike.Deleted = false
+			contentLike.LastUpdate = time.Now()
+			count, err := db.Update(contentLike)
+			if err != nil {
+				r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+					"Desculpe, mas ocorreu um erro atualizar seu like. %s.", err)))
+				return
+			}
+			if count == 0 {
+				r.JSON(http.StatusForbidden, NewError(ErrorCodeDefault, fmt.Sprintf(
+					"Desculpe, mas seu like nao foi atualizado.")))
+				return
+			}
+			incr = true // Updates contents like
+		}
+	}
+
+	// Like added, lets update the content likecount number if it's necessary
+	if incr {
+		content.LikeCount += 1
+		count, err := db.Update(content)
+		if err != nil {
+			r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, mas ocorreu um erro atualizar o centeudo. %s.", err)))
+			return
+		}
+		if count == 0 {
+			r.JSON(http.StatusForbidden, NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, mas seu o conteudo nao foi atualizado.")))
+			return
+		}
+	}
+
+	r.JSON(http.StatusOK, LikeReturn{
+		ContentId: content.ContentId,
+		LikeCount: content.LikeCount,
+		ILike:     true,
+	})
+}
+
+func DeleteLikeHandler(db DB, auth Auth, r render.Render, req *http.Request, params martini.Params) {
+	user, err := auth.GetUser()
+	if err != nil {
+		return // AuthMiddleware will response user
+	}
+
+	contentId := params["contentid"]
+	decr := false // Is it necessary to update content's likecount?
+
+	// Let's select if this contentid really exists
+	contentobj, err := db.Get(Content{}, contentId)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas ocorreu um erro ao se buscar o conteudo desejado. %s.", err)))
+		return
+	}
+
+	if contentobj == nil {
+		r.JSON(http.StatusForbidden, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas o contentid %s informado nao foi encontrado.", contentId)))
+		return
+	}
+
+	content := contentobj.(*Content)
+
+	likeobj, err := db.Get(ContentLike{}, content.ContentId, user.UserId)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas ocorreu um erro ao se buscar o contentlike desejado. %s.", err)))
+		return
+	}
+
+	if likeobj == nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas voce ainda nao deu like neste conteudo %s.", content.ContentId)))
+		return
+	} else {
+		// Like really exists for this content
+		contentLike := likeobj.(*ContentLike)
+		if contentLike.Deleted == false {
+			contentLike.Deleted = true
+			contentLike.LastUpdate = time.Now()
+			count, err := db.Update(contentLike)
+			if err != nil {
+				r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+					"Desculpe, mas ocorreu um erro atualizar seu like. %s.", err)))
+				return
+			}
+			if count == 0 {
+				r.JSON(http.StatusForbidden, NewError(ErrorCodeDefault, fmt.Sprintf(
+					"Desculpe, mas seu like nao foi atualizado.")))
+				return
+			}
+			decr = true // Updates contents like
+		}
+	}
+
+	// Like added, lets update the content likecount number if it's necessary
+	if decr {
+		content.LikeCount -= 1
+		count, err := db.Update(content)
+		if err != nil {
+			r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, mas ocorreu um erro atualizar o centeudo. %s.", err)))
+			return
+		}
+		if count == 0 {
+			r.JSON(http.StatusForbidden, NewError(ErrorCodeDefault, fmt.Sprintf(
+				"Desculpe, mas seu o conteudo nao foi atualizado.")))
+			return
+		}
+	}
+
+	r.JSON(http.StatusOK, LikeReturn{
+		ContentId: content.ContentId,
+		LikeCount: content.LikeCount,
+		ILike:     false,
+	})
 }
 
 // 5MB
@@ -84,10 +248,8 @@ func changeContentImage(db DB, auth Auth, params martini.Params, r render.Render
 
 	// Get user in this session
 	user, err := auth.GetUser()
-	if err != nil || user == nil {
-		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Desculpa, voce precisa estar logado para adicionar um conteudo! %s.", err)))
-		return
+	if err != nil {
+		return // AuthMiddleware will response user
 	}
 
 	// Checks if the session's user really is the content's owner
@@ -183,10 +345,8 @@ func updateContent(db DB, auth Auth, params martini.Params, r render.Render, req
 
 	// Get user in this session
 	user, err := auth.GetUser()
-	if err != nil || user == nil {
-		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Desculpa, voce precisa estar logado para adicionar um conteudo! %s.", err)))
-		return
+	if err != nil {
+		return // AuthMiddleware will response user
 	}
 
 	// Checks if the session's user really is the content's owner
@@ -286,9 +446,7 @@ func addContent(db DB, auth Auth, r render.Render, req *http.Request) {
 	// Get user in this session
 	user, err := auth.GetUser()
 	if err != nil || user == nil {
-		r.JSON(http.StatusUnauthorized, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Desculpa, voce precisa estar logado para adicionar um conteudo! %s.", err)))
-		return
+		return // AuthMiddleware will response user
 	}
 
 	// If user sent us an URL without http, we will put it in the begin of URL

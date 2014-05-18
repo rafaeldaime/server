@@ -15,9 +15,35 @@ controllers.controller('HomeController', function($scope, Restangular) {
 		}
 		return rows;
 	};
+
 	Restangular.all('contents').getList({order: "top"}).then(function (contents) {
+		console.log(contents);
 		$scope.contentrows = getRows(contents, 3);
 	});
+
+	$scope.like = function (content) {
+		console.log("Liking: "+content.contentid)
+
+		content.all("likes").post()
+			.then(function (returndata) {
+				console.log("Like added");
+				console.log("ilikedike count="+returndata.ilike);
+				content.likecount = returndata.likecount;
+				content.ilike = returndata.ilike;
+			});
+	}
+
+	$scope.unlike = function (content) {
+		console.log("Unliking: "+content.contentid)
+
+		content.all("likes").remove()
+			.then(function (returndata) {
+				console.log("Like removed");
+				console.log("ilikedike count="+returndata.ilike);
+				content.likecount = returndata.likecount;
+				content.ilike = returndata.ilike;
+			});
+	}
 });
 
 

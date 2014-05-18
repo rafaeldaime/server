@@ -59,13 +59,30 @@ func (u *UserAuth) GetUser() (*User, error) {
 	}
 }
 
-func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
-	header := r.Header.Get("Authorization")
+func AccessDeniedHandler(r render.Render, req *http.Request, err error) {
+	if req.Header.Get("Authorization") != "" {
+		// Client thiks he is logged, force him to logout
+		r.JSON(419, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Voce nao esta mais logado no sistema! %s.", err)))
+		return
+	}
+	// Client didn't send credentials, say him it's required
+	r.JSON(403, NewError(ErrorCodeDefault, fmt.Sprintf(
+		"Voce nao esta logado no sistema! %s.", err)))
+}
 
+func AuthMiddleware(c martini.Context, db DB, r render.Render, req *http.Request) {
+	header := req.Header.Get("Authorization")
 	if header == "" {
 		err := errors.New("Voce nao apresentou credenciais de autorizacao")
 		userAuth := &UserAuth{nil, err}
 		c.MapTo(userAuth, (*Auth)(nil))
+		c.Next() // Call the next handler
+		if !c.Written() {
+			// If the nex handler aborted, empty return
+			// So he can't go on without user, let's alert user
+			AccessDeniedHandler(r, req, err)
+		}
 		return
 	}
 
@@ -75,6 +92,10 @@ func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 		err := errors.New("Credenciais de authorizacao apresentadas sao invalidas.")
 		userAuth := &UserAuth{nil, err}
 		c.MapTo(userAuth, (*Auth)(nil))
+		c.Next()          // Call the next handler
+		if !c.Written() { // Response the user
+			AccessDeniedHandler(r, req, err)
+		}
 		return
 	}
 
@@ -82,6 +103,10 @@ func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 	if err != nil {
 		userAuth := &UserAuth{nil, err}
 		c.MapTo(userAuth, (*Auth)(nil))
+		c.Next()          // Call the next handler
+		if !c.Written() { // Response the user
+			AccessDeniedHandler(r, req, err)
+		}
 		return
 	}
 
@@ -90,6 +115,10 @@ func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 		err = errors.New("Credenciais de authorizacao estao corrompidas")
 		userAuth := &UserAuth{nil, err}
 		c.MapTo(userAuth, (*Auth)(nil))
+		c.Next()          // Call the next handler
+		if !c.Written() { // Response the user
+			AccessDeniedHandler(r, req, err)
+		}
 		return
 	}
 
@@ -100,6 +129,10 @@ func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 	if err != nil {
 		userAuth := &UserAuth{nil, err}
 		c.MapTo(userAuth, (*Auth)(nil))
+		c.Next()          // Call the next handler
+		if !c.Written() { // Response the user
+			AccessDeniedHandler(r, req, err)
+		}
 		return
 	}
 
@@ -108,6 +141,10 @@ func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 		err = errors.New("Credenciais fornecidas nao foram encontradas")
 		userAuth := &UserAuth{nil, err}
 		c.MapTo(userAuth, (*Auth)(nil))
+		c.Next()          // Call the next handler
+		if !c.Written() { // Response the user
+			AccessDeniedHandler(r, req, err)
+		}
 		return
 	}
 
@@ -116,6 +153,10 @@ func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 		err = errors.New("Usuario nao identificado pelas credenciais fornecidas")
 		userAuth := &UserAuth{nil, err}
 		c.MapTo(userAuth, (*Auth)(nil))
+		c.Next()          // Call the next handler
+		if !c.Written() { // Response the user
+			AccessDeniedHandler(r, req, err)
+		}
 		return
 	}
 
@@ -123,11 +164,16 @@ func AuthMiddleware(c martini.Context, db DB, r *http.Request) {
 	if err != nil {
 		userAuth := &UserAuth{nil, err}
 		c.MapTo(userAuth, (*Auth)(nil))
+		c.Next()          // Call the next handler
+		if !c.Written() { // Response the user
+			AccessDeniedHandler(r, req, err)
+		}
 		return
 	}
 
 	user := obj.(*User)
 	userAuth := &UserAuth{user: user, err: nil}
+	// Here the next handler has got the user
 	c.MapTo(userAuth, (*Auth)(nil))
 }
 

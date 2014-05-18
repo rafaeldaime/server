@@ -58,6 +58,46 @@ func StripDescription(description string) string {
 	return description
 }
 
+func GetAllFullContent(db DB, user *User, limit, page int) ([]FullContent, error) {
+	var fullContents []FullContent
+	start := page*limit - limit
+	query := "select * from fullcontent order by likecount desc limit ?, ?"
+	_, err := db.Select(&fullContents, query, start, limit)
+	if err != nil {
+		return nil, err
+	}
+	//, user.UserId, "'"+strings.Join(contentIds, "', '")+"'"
+	if user != nil {
+		var contentIds []string
+		for _, content := range fullContents {
+			contentIds = append(contentIds, content.ContentId)
+		}
+		var contetLikes []ContentLike
+		ids := "'" + strings.Join(contentIds, "', '") + "'"
+		query = "select * from contentlike"
+		query += " where userid = '" + user.UserId + "' and contentid in ( " + ids + " ) and deleted = false"
+		//log.Printf("QUERY= %s", query)
+		_, err = db.Select(&contetLikes, query)
+		if err != nil {
+			return nil, err
+		}
+		//log.Printf("LIKES: %#v", contetLikes)
+		if len(contetLikes) > 0 {
+			for i, content := range fullContents {
+				for _, contentLike := range contetLikes {
+					log.Printf("%s = %s \n", content.ContentId, contentLike.ContentId)
+					if content.ContentId == contentLike.ContentId {
+						fullContents[i].ILike = true // Alter in the list
+						log.Printf("CONT liked: %#v\n", fullContents[i])
+					}
+				}
+			}
+		}
+	}
+	//log.Printf("CONTS: %#v", fullContents)
+	return fullContents, nil
+}
+
 func GetSlug(content *Content) (string, error) {
 	s := slug.Slug(content.Title)
 

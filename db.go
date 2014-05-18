@@ -61,6 +61,8 @@ func init() {
 	dbmap.AddTableWithName(Image{}, "image").SetKeys(false, "imageid")
 	dbmap.AddTableWithName(Url{}, "url").SetKeys(false, "urlid")
 	dbmap.AddTableWithName(Content{}, "content").SetKeys(false, "contentid")
+	dbmap.AddTableWithName(FullContent{}, "fullcontent").SetKeys(false, "contentid")
+	dbmap.AddTableWithName(ContentLike{}, "contentlike").SetKeys(false, "contentid", "userid")
 
 	// Adding to local vairable
 	db = &dbmap

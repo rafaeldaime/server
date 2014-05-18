@@ -19,7 +19,7 @@ type User struct {
 type Pic struct {
 	PicId    string    `db:"picid" json:"picid"`       // *PK max: 20
 	Creation time.Time `db:"creation" json:"creation"` // *NN
-	Deleted  bool      `db:"deleted" json:"deleted"`   // default: 0
+	Deleted  bool      `db:"deleted" json:"-"`         // default: 0
 }
 
 type Profile struct {
@@ -40,7 +40,7 @@ type Profile struct {
 	Scope        string    `db:"scope" json:"scope"`               // *NN max: 40
 	TokenExpiry  time.Time `db:"tokenexpiry" json:"tokenexpiry"`   // *NN Time token spiries
 	Creation     time.Time `db:"creation" json:"creation"`         // *NN
-	LastUpdate   time.Time `db:"lastupdate" json:"lastupdate"`     // *NN
+	LastUpdate   time.Time `db:"lastupdate" json:"-"`              // *NN
 }
 
 type Token struct {
@@ -61,7 +61,7 @@ type Image struct {
 	ImageId  string    `db:"imageid" json:"imageid"`   // *PK max: 20userpicid
 	MaxSize  string    `db:"maxsize" json:"maxsize"`   // *NN ENUM('small', 'medium', 'large')
 	Creation time.Time `db:"creation" json:"creation"` // *NN
-	Deleted  bool      `db:"deleted" json:"deleted"`   // default: 0
+	Deleted  bool      `db:"deleted" json:"-"`         // default: 0
 }
 
 type Url struct {
@@ -85,9 +85,10 @@ type Content struct {
 	LikeCount   int       `db:"likecount" json:"likecount"`     // default: 0
 	Creation    time.Time `db:"creation" json:"creation"`       // *NN
 	LastUpdate  time.Time `db:"lastupdate" json:"lastupdate"`   // *NN
-	Deleted     bool      `db:"deleted" json:"deleted"`         // default: 0
+	Deleted     bool      `db:"deleted" json:"-"`               // default: 0
 }
 
+// It's a view
 type FullContent struct {
 	ContentId    string    `db:"contentid" json:"contentid"`       // *PK max: 20
 	UrlId        string    `db:"urlid" json:"urlid"`               // *FK max: 5
@@ -107,4 +108,13 @@ type FullContent struct {
 	ViewCount    int       `db:"viewcount" json:"viewcount"`       // default: 0
 	CategoryName string    `db:"categoryname" json:"categoryname"` //  max: 20
 	CategorySlug string    `db:"categoryslug" json:"categoryslug"` // *UQ max: 20 Index
+	ILike        bool      `db:"ilike" json:"ilike"`               //  *NOT IN THE VIEW
+}
+
+type ContentLike struct {
+	ContentId  string    `db:"contentid" json:"contentid"`   // *PK max: 20
+	UserId     string    `db:"userid" json:"userid"`         // *PK max: 20
+	Creation   time.Time `db:"creation" json:"creation"`     // *NN
+	LastUpdate time.Time `db:"lastupdate" json:"lastupdate"` // *NN
+	Deleted    bool      `db:"deleted" json:"-"`             // default: 0
 }

@@ -45,8 +45,17 @@ app.run(function ($rootScope, $http, $cookies, Restangular) {
 
 	// Configuring id to respect our pattern
 	Restangular.configuration.getIdFromElem = function(elem) {
-	  // if route is user ==> returns userid
-	  return elem[_.initial(elem.route).join('') + "id"];
+		// if route is user ==> returns userid
+		//console.log("setIdFromElem route: "+elem.route);
+		var id = elem["id"];
+		var elemid = elem[_.initial(elem.route).join('') + "id"];
+		//console.log(elem);
+		if (elem["id"]) {
+			//console.log("Id: "+elem["id"]);
+			return elem["id"]
+		}
+		//console.log("Id["+_.initial(elem.route).join('') + "id"+"]: "+elem[_.initial(elem.route).join('') + "id"]);
+		return elem[_.initial(elem.route).join('') + "id"]
 	}
 
 	// Setting the Api error response handler

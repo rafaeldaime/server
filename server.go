@@ -86,6 +86,8 @@ func init() {
 	r.Post("/api/contents", addContent)
 	r.Get("/api/contents", getContents)
 	r.Put("/api/contents/:contentid", updateContent)
+	r.Post("/api/contents/:contentid/likes", AddLikeHandler)
+	r.Delete("/api/contents/:contentid/likes", DeleteLikeHandler)
 	r.Post("/api/contents/:contentid/image", changeContentImage)
 
 	r.NotFound(func(r render.Render, req *http.Request) {
