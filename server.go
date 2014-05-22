@@ -77,11 +77,14 @@ func init() {
 	// Add the Auth Handlers
 	r.Get("/login", LoginHandler)
 	r.Get("/logincallback", LoginCallbackHandler)
+	// Redirect to full url, and save access log
+	r.Get("/link/:urlid", LinkHandler)
 
 	// Api Handlers
 	r.Get("/api/me", meHandler)
 
 	r.Get("/api/categories", getAllCategories)
+	r.Get("/api/categories/:categoryslug/contents", getCategoryContents)
 
 	r.Post("/api/contents", addContent)
 	r.Get("/api/contents", getContents)

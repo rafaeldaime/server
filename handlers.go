@@ -44,13 +44,82 @@ func getContents(db DB, auth Auth, r render.Render, req *http.Request) {
 	// limit := qs.Get("limit")
 	// page := qs.Get("page")
 
-	fullContents, err := GetAllFullContent(db, user, 30, 1)
+	contents, err := GetContents(db, user, "", 30, 1)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, ocorreu um erro ao buscar os conteudos no banco %s.", err)))
+		return
+	}
+	r.JSON(http.StatusOK, contents)
+}
+
+func getCategoryContents(db DB, auth Auth, params martini.Params, r render.Render, req *http.Request) {
+	user, err := auth.GetUser()
+	qs := req.URL.Query()
+	order := qs.Get("order")
+	categorySlug := params["categoryslug"]
+	log.Printf("CONTENTS FROM %s ORDER: %s \n", categorySlug, order)
+	// limit := qs.Get("limit")
+	// page := qs.Get("page")
+
+	contents, err := GetContents(db, user, categorySlug, 30, 1)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, ocorreu um erro ao buscar os conteudos no banco %s.", err)))
+		return
+	}
+	r.JSON(http.StatusOK, contents)
+}
+
+func LinkHandler(db DB, auth Auth, params martini.Params, r render.Render, req *http.Request, res http.ResponseWriter) {
+	user, err := auth.GetUser() // Could return anonymous user
+	urlId := params["urlid"]
+
+	obj, err := db.Get(Url{}, urlId)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
 			"Desculpe, ocorreu um erro ao buscar os conteudos completos no banco %s.", err)))
 		return
 	}
-	r.JSON(http.StatusOK, fullContents)
+
+	if obj == nil {
+		r.JSON(http.StatusInternalServerError, NewError(ErrorCodeDefault, fmt.Sprintf(
+			"Desculpe, mas o link com este identificador nao foi encontrado.")))
+		return
+	}
+
+	url := obj.(*Url)
+
+	// Let's save its access after return the response to user
+	defer linkAccess(url, user)
+
+	http.Redirect(res, req, url.FullUrl, 302)
+}
+
+func linkAccess(url *Url, user *User) {
+	url.ViewCount += 1
+
+	count, err := db.Update(url)
+	if err != nil {
+		log.Printf("Error when updating the url.ViewCount. %s.\n", err)
+		return
+	}
+	if count != 1 {
+		log.Printf("Error url.ViewCount was not updated.\n", err)
+		return
+	}
+
+	access := &Access{
+		AccessId: uniuri.NewLen(20),
+		UserId:   user.UserId, // Could be anonymous
+		UrlId:    url.UrlId,
+		Creation: time.Now(),
+	}
+	err = db.Insert(access)
+	if err != nil {
+		log.Printf("Error when inserting the access object. %s.\n", err)
+		return
+	}
 }
 
 func meHandler(auth Auth, r render.Render, req *http.Request) {
@@ -302,15 +371,12 @@ func changeContentImage(db DB, auth Auth, params martini.Params, r render.Render
 
 			// Stop on the first file!
 			break
-
-			// path := fmt.Sprintf("public/%s", fileHeader.Filename)
-			// buf, _ := ioutil.ReadAll(file)
-			// ioutil.WriteFile(path, buf, os.ModePerm)
 		}
 	}
 
 	// Updating fields on saved content... to appoint the new image
 	oldContent.ImageId = image.ImageId
+	oldContent.ImageMaxSize = image.MaxSize
 
 	log.Printf("oldContent: %#v\n", oldContent)
 
@@ -445,7 +511,7 @@ func addContent(db DB, auth Auth, r render.Render, req *http.Request) {
 
 	// Get user in this session
 	user, err := auth.GetUser()
-	if err != nil || user == nil {
+	if err != nil { // Anonymous user returned
 		return // AuthMiddleware will response user
 	}
 

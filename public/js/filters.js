@@ -6,7 +6,7 @@ var filters = angular.module('app.filters', []);
 
 filters.filter('userpicsrc', function() {
 	return function(user) {
-		if (user && user) {
+		if (user) {
 			return "pic/" + user.picid + ".png"
 		};
 		return "pic/default.png";
@@ -25,28 +25,16 @@ filters.filter('strLimit', function() {
 
 
 
-filters.filter('get', function() {
-	return function(content, $scope, what) {
-		if (what == 'categoryname')
-			return _.find($scope.categories, function (category) {
-				return category.categoryid == content.categoryid
-			}).categoryname
-		if (what == 'categoryslug')
-			return _.find($scope.categories, function (category) {
-				return category.categoryid == content.categoryid
-			}).categoryslug
-	};
-});
-
-
 filters.filter('contenthasimage', function() {
 	return function(content, size) {
+		// DUNNO WHY BUY THIS FILTER IS CALLED SO MANY TIMES !!!
+		// It's called every $digest action, i dunno if it's the better option...
 		if (!content) {
 			return false;
 		}
 		// If we want to know just if there is or there isn't an image in this content
 		if (!size) {
-			if (content.maxsize == '') {
+			if (content.imagemaxsize == '') {
 				return false
 			}
 			else {
@@ -54,11 +42,11 @@ filters.filter('contenthasimage', function() {
 			}
 		}
 		// Check if there is large image for this content, and so on
-		if (size == 'large' && content.maxsize == 'large') {
+		if (size == 'large' && content.imagemaxsize == 'large') {
 			return true;
-		} else if (size == 'medium' && (content.maxsize == 'large' || content.maxsize == 'medium')) {
+		} else if (size == 'medium' && (content.imagemaxsize == 'large' || content.imagemaxsize == 'medium')) {
 			return true;
-		} else if (size == 'small' && (content.maxsize == 'large' || content.maxsize == 'medium' || content.maxsize == 'small')) {
+		} else if (size == 'small' && (content.imagemaxsize == 'large' || content.imagemaxsize == 'medium' || content.imagemaxsize == 'small')) {
 			return true;
 		}
 		return false;
@@ -68,19 +56,20 @@ filters.filter('contenthasimage', function() {
 
 filters.filter('contentimagesrc', function() {
 	return function(content, size) {
-		if (!content) {
-			return '';
-		}
+		// DUNNO WHY BUY THIS FILTER IS CALLED SO MANY TIMES !!!
+		// It's called every $digest action, i dunno if it's the better option...
+
+		//console.log("["+content.contentid+"]Img-size: "+size+" from: "+content.imagemaxsize);
 		// Content will always have a small image, even if it's the default
 		if (size == 'small') {
 			return "img/" + content.imageid + "-" + size + ".png";
 		};
 		// Check if there is large image for this content, or return default large image
-		if (size == 'large' && (content.maxsize == 'small' || content.maxsize == 'medium')) {
+		if (size == 'large' && (content.imagemaxsize == 'small' || content.imagemaxsize == 'medium')) {
 			return "img/default-" + size + ".png";
 		};
 		// Check if there is medium image for this content, or return default medium image
-		if (size == 'medium' && content.maxsize == 'small') {
+		if (size == 'medium' && content.imagemaxsize == 'small') {
 			return "img/default-" + size + ".png";
 		};
 		return "img/" + content.imageid + "-" + size + ".png";

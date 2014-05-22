@@ -73,19 +73,22 @@ type Url struct {
 }
 
 type Content struct {
-	ContentId   string    `db:"contentid" json:"contentid"`     // *PK max: 20
-	UrlId       string    `db:"urlid" json:"urlid"`             // *FK max: 5
-	CategoryId  string    `db:"categoryid" json:"categoryid"`   // *FK max: 20
-	Title       string    `db:"title" json:"title"`             // *NN  max: 255 (250)
-	Slug        string    `db:"slug" json:"slug"`               // *NN  max: 255 (250)
-	Description string    `db:"description" json:"description"` // *NN  max: 255
-	Host        string    `db:"host" json:"host"`               // *NN  max: 20
-	UserId      string    `db:"userid" json:"userid"`           // *FK max: 20
-	ImageId     string    `db:"imageid" json:"imageid"`         // *FK max: 20
-	LikeCount   int       `db:"likecount" json:"likecount"`     // default: 0
-	Creation    time.Time `db:"creation" json:"creation"`       // *NN
-	LastUpdate  time.Time `db:"lastupdate" json:"lastupdate"`   // *NN
-	Deleted     bool      `db:"deleted" json:"-"`               // default: 0
+	ContentId    string    `db:"contentid" json:"contentid"`       // *PK max: 20
+	UrlId        string    `db:"urlid" json:"urlid"`               // *FK max: 5
+	CategoryId   string    `db:"categoryid" json:"categoryid"`     // *FK max: 20
+	Title        string    `db:"title" json:"title"`               // *NN  max: 255 (250)
+	Slug         string    `db:"slug" json:"slug"`                 // *NN  max: 255 (250)
+	Description  string    `db:"description" json:"description"`   // *NN  max: 255
+	Host         string    `db:"host" json:"host"`                 // *NN  max: 20
+	UserId       string    `db:"userid" json:"userid"`             // *FK max: 20
+	ImageId      string    `db:"imageid" json:"imageid"`           // *FK max: 20
+	ImageMaxSize string    `db:"imagemaxsize" json:"imagemaxsize"` // *NN ENUM('small', 'medium', 'large')
+	LikeCount    int       `db:"likecount" json:"likecount"`       // default: 0
+	Ranking      int       `db:"ranking" json:"ranking"`           // default: 0
+	Creation     time.Time `db:"creation" json:"creation"`         // *NN
+	LastUpdate   time.Time `db:"lastupdate" json:"lastupdate"`     // *NN
+	Deleted      bool      `db:"deleted" json:"-"`                 // default: 0
+	ILike        bool      `db:"-" json:"ilike"`                   //  *NOT IN THE VIEW
 }
 
 // It's a view
@@ -106,6 +109,7 @@ type FullContent struct {
 	UserPicId    string    `db:"userpicid" json:"userpicid"`       // *PK max: 20
 	ImageMaxSize string    `db:"imagemaxsize" json:"imagemaxsize"` // *NN ENUM('small', 'medium', 'large')
 	ViewCount    int       `db:"viewcount" json:"viewcount"`       // default: 0
+	Ranking      int       `db:"ranking" json:"ranking"`           // default: 0
 	CategoryName string    `db:"categoryname" json:"categoryname"` //  max: 20
 	CategorySlug string    `db:"categoryslug" json:"categoryslug"` // *UQ max: 20 Index
 	ILike        bool      `db:"ilike" json:"ilike"`               //  *NOT IN THE VIEW
@@ -117,4 +121,11 @@ type ContentLike struct {
 	Creation   time.Time `db:"creation" json:"creation"`     // *NN
 	LastUpdate time.Time `db:"lastupdate" json:"lastupdate"` // *NN
 	Deleted    bool      `db:"deleted" json:"-"`             // default: 0
+}
+
+type Access struct {
+	AccessId string    `db:"accessid" json:"accessid"` // *PK max: 20
+	UserId   string    `db:"userid" json:"userid"`     // *FK max: 20
+	UrlId    string    `db:"urlid" json:"urlid"`       // *FK max: 20
+	Creation time.Time `db:"creation" json:"creation"` // *NN
 }

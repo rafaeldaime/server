@@ -1,47 +1,109 @@
-<!-- Full Contents list -->
-<section class="top-contents">
-	<div class="row" ng-repeat="contentrow in contentrows">
-		<article class="content-container col-md-4" ng-repeat="content in contentrow" ng-init="content.mouseover=false" ng-mouseenter="content.mouseover=true" ng-mouseleave="content.mouseover=false">
-			<div class="content-image content-image-small">
-				<a class="content-link" ng-href="/link/{{ content.urlid }}" >
-					<img ng-src="{{ content | contentimagesrc:'medium' }}" />
+
+<!-- Alert's exhibitions -->
+<alert ng-repeat="alert in alerts" type="{{alert.type}}" close="closeAlert($index)">{{alert.msg}}</alert>
+
+<!-- First content -->
+<section ng-if="contentfirst" class="first-content row content-row">
+	<article class="content-container" ng-init="contentfirst.mouseover=false" ng-mouseenter="contentfirst.mouseover=true" ng-mouseleave="contentfirst.mouseover=false">
+		<div class="col-md-8">
+			<div class="content-image content-image-large">
+				<a class="content-link" ng-href="/link/{{ contentfirst.urlid }}" >
+					<img ng-src="{{ contentfirst | contentimagesrc:'large' }}" />
 				</a>
 			</div>
+		</div>
 
-
-			<div class="content-content">
+		<div class="col-md-4">
+			<div class="contentfirst-content">
 
 				<header class="content-header">
 				<h2 class="content-title">
-				<a class="content-link" ng-bind="content.title"  ng-href="/link/{{ content.urlid }}"></a>
+				<a class="content-link" ng-bind="contentfirst.title"  ng-href="/link/{{ contentfirst.urlid }}"></a>
 				</h2>
 				<div class="content-meta">
 				<span class="content-score">
 					<span class="glyphicon glyphicon-thumbs-up"></span>
-					{{ content.likecount }}
+					{{ contentfirst.likecount }}
 				</span>
 				<span class="content-meta-item">
-				<a ng-bind="content.categoryname" ui-sref="category({ categoryslug: content.categoryslug })"></a>
+				<a ng-bind="categories.getName(contentfirst)" ui-sref="{{ categories.getSlug(contentfirst) }}()"></a>
 				</span>
 				<span class="content-meta-item">
-				<a class="content-meta-item-link" ng-bind="content.creation | date : timeFormat">
+				<a class="content-meta-item-link" ng-bind="contentfirst.creation | date : timeFormat">
 				</a>
 				</span>
 				</div>
 				</header>
 
-				<p class="content-description" ng-bind="content.description"></p>
+				<p class="content-description" ng-bind="contentfirst.description"></p>
 
 				<div class="content-host">
+					<span ng-show="me && contentfirst.mouseover" class="content-actions">
+						<a ng-hide="contentfirst.ilike" ng-click="like(contentfirst)"  popover-trigger="mouseenter" popover-placement="top" popover="CURTIR!" class="btn btn-info glyphicon glyphicon-thumbs-up">
+						</a>
+						<a ng-show="contentfirst.ilike" ng-click="unlike(contentfirst)"  popover-trigger="mouseenter" popover-placement="top" popover="DESCURTIR!" class="btn btn-default glyphicon glyphicon-thumbs-up">
+						</a>
+						<a ng-show="contentfirst.userid == me.userid" class="btn btn-primary glyphicon glyphicon-edit" ng-click="editPost(contentfirst)"  popover-trigger="mouseenter" popover-placement="top" popover="EDITAR!"></a>
+						<a class="btn btn-danger glyphicon glyphicon-flag"  popover-trigger="mouseenter" popover-placement="top" popover="DENUNCIAR!"></a>
+					</span>
+					<span class="content-link" ng-bind="contentfirst.host"></span>
+				</div>
+
+			</div>
+
+		</div>
+	</article>
+</section>
+<!-- End of First content-->
+
+<!-- Full Contents list -->
+<section class="contents-list">
+	<div class="row content-row" ng-repeat="contentrow in contentrows">
+		<article class="content-container col-md-4" ng-repeat="content in contentrow" ng-init="content.mouseover=false" ng-mouseenter="content.mouseover=true" ng-mouseleave="content.mouseover=false">
+
+
+			<div class="content-image">
+				<a class="content-link" ng-href="/link/{{ content.urlid }}" >
+					<img ng-src="{{ content | contentimagesrc:'medium' }}" />
+				</a>
+			</div>
+
+			<div class="content-host-domain">
+				<span class="address" ng-bind="content.host"></span>
+			</div>
+
+			<div class="content-content">
+
+				<header class="content-header">
+					<h2 class="content-title">
+						<a class="content-link" ng-bind="content.title"  ng-href="/link/{{ content.urlid }}"></a>
+					</h2>
+					<div class="content-meta">
+						<span class="content-score">
+							<span class="glyphicon glyphicon-thumbs-up"></span>
+							{{ content.likecount }}
+						</span>
+						<span class="content-meta-item">
+							<a ng-bind="categories.getName(content)" ui-sref="{{ categories.getSlug(content) }}()"></a>
+						</span>
+						<span class="content-meta-item content-date">
+							<a class="content-meta-item-link" ng-bind="content.creation | date : timeFormat"></a>
+						</span>
+					</div>
+				</header>
+
+				<p class="content-description" ng-bind="content.description"></p>
+
+				<div class="content-footer">
 					<span ng-show="me && content.mouseover" class="content-actions">
 						<a ng-hide="content.ilike" ng-click="like(content)"  popover-trigger="mouseenter" popover-placement="top" popover="CURTIR!" class="btn btn-info glyphicon glyphicon-thumbs-up">
 						</a>
 						<a ng-show="content.ilike" ng-click="unlike(content)"  popover-trigger="mouseenter" popover-placement="top" popover="DESCURTIR!" class="btn btn-default glyphicon glyphicon-thumbs-up">
 						</a>
 						<a ng-show="content.userid == me.userid" class="btn btn-primary glyphicon glyphicon-edit" ng-click="editPost(content)"  popover-trigger="mouseenter" popover-placement="top" popover="EDITAR!"></a>
-						<a class="btn btn-danger glyphicon glyphicon-flag"  popover-trigger="mouseenter" popover-placement="top" popover="DENUNCIAR!"></a>
+						<a class="btn btn-danger glyphicon glyphicon-flag btn-flag"  popover-trigger="mouseenter" popover-placement="top" popover="DENUNCIAR!"></a>
 					</span>
-					<span class="content-link" ng-bind="content.host"></span>
+					<span class="content-comments">54 comentarios</span>
 				</div>
 
 			</div>

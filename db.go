@@ -56,13 +56,14 @@ func init() {
 	dbmap.AddTableWithName(User{}, "user").SetKeys(false, "userid")
 	dbmap.AddTableWithName(Profile{}, "profile").SetKeys(false, "profileid")
 	dbmap.AddTableWithName(Pic{}, "pic").SetKeys(false, "picid")
-	dbmap.AddTableWithName(Token{}, "token").SetKeys(false, "tokenid")
+	dbmap.AddTableWithName(Token{}, "token").SetKeys(false, "tokenid", "userid")
 	dbmap.AddTableWithName(Category{}, "category").SetKeys(false, "categoryid")
 	dbmap.AddTableWithName(Image{}, "image").SetKeys(false, "imageid")
 	dbmap.AddTableWithName(Url{}, "url").SetKeys(false, "urlid")
 	dbmap.AddTableWithName(Content{}, "content").SetKeys(false, "contentid")
 	dbmap.AddTableWithName(FullContent{}, "fullcontent").SetKeys(false, "contentid")
 	dbmap.AddTableWithName(ContentLike{}, "contentlike").SetKeys(false, "contentid", "userid")
+	dbmap.AddTableWithName(Access{}, "access").SetKeys(false, "accessid")
 
 	// Adding to local vairable
 	db = &dbmap
@@ -73,7 +74,7 @@ func init() {
 
 	checkAndCreateDefaultImage(db)
 
-	checkAndCreateAdminUser(db)
+	checkAndCreateAnonymousUser(db)
 
 	checkAndCreateCategories(db)
 
@@ -131,31 +132,31 @@ func checkAndCreateDefaultImage(db DB) {
 	}
 }
 
-func checkAndCreateAdminUser(db DB) {
-	count, err := db.SelectInt("select count(*) from user where userid=?", "admin")
+func checkAndCreateAnonymousUser(db DB) {
+	count, err := db.SelectInt("select count(*) from user where userid=?", "anonymous")
 	if err == nil {
 		if count == 0 {
-			admin := &User{
-				UserId:     "admin",
-				UserName:   "Admin",
+			anonymous := &User{
+				UserId:     "anonymous",
+				UserName:   "Anonimo",
 				PicId:      "default",
-				FullName:   "Admin",
+				FullName:   "Usuario Anonimo",
 				LikeCount:  0,
 				Creation:   time.Now(),
 				LastUpdate: time.Now(),
 				Deleted:    false,
-				Admin:      true,
+				Admin:      false,
 			}
 
-			err := db.Insert(admin)
+			err := db.Insert(anonymous)
 			if err != nil {
-				log.Printf("Error creating the admin user. %s\n", err)
+				log.Printf("Error creating the anonymous user. %s\n", err)
 			} else {
-				log.Println("User admin created!")
+				log.Println("User anonymous created!")
 			}
 		}
 	} else {
-		log.Printf("Error searching for user admin. %s\n", err)
+		log.Printf("Error searching for user anonymous. %s\n", err)
 	}
 }
 

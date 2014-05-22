@@ -68,10 +68,11 @@ func SaveImage(file io.Reader) (*Image, error) {
 
 	// We will save 3 resized images
 	sizes := [...]string{"small", "medium", "large"}
-	dimensions := [...]dimension{{233, 127}, {358, 195}, {660, 360}}
+	dimensions := [...]dimension{{233, 127}, {358, 194}, {748, 408}}
 
 	// We will save the Thumbnails just if the original image
 	// dimension is bigger or equals than the thumbnail dimension
+	// to large thumbnail images
 	for index, size := range sizes {
 		newWidth := dimensions[index].Width
 		newHeight := dimensions[index].Height
@@ -80,8 +81,8 @@ func SaveImage(file io.Reader) (*Image, error) {
 
 		// log.Printf("Trying to save img size %d, widthRatio: %f, heightRatio: %f\n", size, widthRatio, heightRatio)
 
-		// We will resize and crop just images bigger than thumbnail in both dimensions
-		// If image isn't bigger enought, so we will not take the large image
+		// We will resize and crop images small and medium and
+		// just images bigger than large size will be saved with large scale
 		if size == "small" || size == "medium" || (widthRatio >= 1 && heightRatio >= 1) {
 			maxSize = size
 			// Below the values to the image be resized after be cropped

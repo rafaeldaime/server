@@ -22,6 +22,8 @@ app.config(function($stateProvider, $urlRouterProvider) {
 			templateUrl: "view/home.html",
 			controller: "HomeController"
 		});
+	
+	app.$stateProvider = $stateProvider;
 });
 
 app.run(function ($rootScope, $http, $cookies, Restangular) {
@@ -36,6 +38,38 @@ app.run(function ($rootScope, $http, $cookies, Restangular) {
 	};
 	$rootScope.closeAlert = function(index) {
 		$rootScope.alerts.splice(index, 1);
+	};
+	// Verify if there is an message or error stored in cookies
+	if ($cookies.message) {
+		$rootScope.addAlert($cookies.message)
+		delete $cookies.message
+	}
+	if ($cookies.error) {
+		$rootScope.addAlert($cookies.error)
+		delete $cookies.error
+	}
+
+	// Helper function to divide array in a 2d array
+	// Return an array with max of elements in each row
+	$rootScope.getRows = function(array, maxElem) {
+		var rows = [];
+		var i, j, temparray, chunk = maxElem;
+		for (i=0,j=array.length; i<j; i+=chunk) {
+			temparray = array.slice(i, i+chunk);
+			rows.push(temparray);
+		}
+		return rows;
+	};
+	// Helper function to divide array in a 2d array
+	// Divide the inner array in x pieces
+	$rootScope.getCols = function(array, pieces) {
+		var rows = [];
+		var i, j, temparray, chunk = array.length/pieces;
+		for (i=0,j=array.length; i<j; i+=chunk) {
+			temparray = array.slice(i, i+chunk);
+			rows.push(temparray);
+		}
+		return rows;
 	};
 
 	// Cofiguring our Rest client Restangular
@@ -107,36 +141,52 @@ app.run(function ($rootScope, $http, $cookies, Restangular) {
 
 
 	Restangular.all('categories').getList({order: "categoryname"}).then(function (categories) {
-		$rootScope.categories = categories;
-	});
+		
 
+		// Configuring our router to add each category
+		_.forEach(categories, function (category) {
+			//console.log("Adding category "+category.categoryslug+" to router.");
+			app.$stateProvider.state(category.categoryslug, {
+				url: "/"+category.categoryslug,
+				templateUrl: "view/home.html",
+				controller: "HomeController",
+				data: {
+					categoryslug: category.categoryslug
+				}
+			});
+		})
+		
+
+		// Attaching some helper functions
+		categories.getName = function (content) {
+			if (content) {
+				return _.find(this, function (category) {
+					return category.categoryid == content.categoryid
+				}).categoryname
+			};
+		}
+		categories.getSlug = function (content) {
+			if (content) {
+				return _.find(this, function (category) {
+					return category.categoryid == content.categoryid
+				}).categoryslug
+			};
+		}
+
+		// Attaching to root scope, cause all controllers will need it
+		$rootScope.categories = categories;
+		$rootScope.categoriesCols = $rootScope.getCols(categories, 4);
+	});
 });
 
 app.controller('AppController', function($scope, $timeout, $cookies, $modal, $log, Restangular, $controller ) {
 	$scope.timeFormat = "d-MM-yy 'às' HH:mm";
-	$scope.isSearchHidden = true;
-	$scope.isPostHidden = true;
+	$scope.showSearch = false;
+	$scope.isSearching = false;
+	$scope.showPost = false;
 	$scope.isPosting = false;
-	$scope.isCategoriesCollapsed = true;
+	$scope.postUrl = "";
 
-	// Debugging easy
-
-	$scope.postUrl = 'http://digg.com/tag/human-nature';
-
-
-	// We are waching for categories
-	// so we can create the 4 slices of it to show like the 4 columns to user
-	var watchCategories = function (newValue, oldValue) {
-		if (newValue) {
-			var categories = newValue;
-			$scope.categoriesSlice1 = categories.slice(0, categories.length/4);
-			$scope.categoriesSlice2 = categories.slice(categories.length/4, categories.length/2);
-			$scope.categoriesSlice3 = categories.slice(categories.length/2, categories.length*3/4);
-			$scope.categoriesSlice4 = categories.slice(categories.length*3/4, categories.length);
-		}
-	}
-	// Listen to changes in categories
-	$scope.$watch("categories", watchCategories);
 
 
 	$scope.editPost = function (content) {

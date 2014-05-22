@@ -58,18 +58,26 @@ func StripDescription(description string) string {
 	return description
 }
 
-func GetAllFullContent(db DB, user *User, limit, page int) ([]FullContent, error) {
-	var fullContents []FullContent
+func GetContents(db DB, user *User, categoryslug string, limit, page int) ([]Content, error) {
+	var contents []Content
 	start := page*limit - limit
-	query := "select * from fullcontent order by likecount desc limit ?, ?"
-	_, err := db.Select(&fullContents, query, start, limit)
+	query := "select content.* from content"
+	var err error
+	if categoryslug != "" {
+		query += ", category where content.categoryid = category.categoryid"
+		query += " and categoryslug = ? order by likecount desc limit ?, ?"
+		_, err = db.Select(&contents, query, categoryslug, start, limit)
+	} else {
+		query += " order by likecount desc limit ?, ?"
+		_, err = db.Select(&contents, query, start, limit)
+	}
 	if err != nil {
 		return nil, err
 	}
-	//, user.UserId, "'"+strings.Join(contentIds, "', '")+"'"
+
 	if user != nil {
 		var contentIds []string
-		for _, content := range fullContents {
+		for _, content := range contents {
 			contentIds = append(contentIds, content.ContentId)
 		}
 		var contetLikes []ContentLike
@@ -83,19 +91,19 @@ func GetAllFullContent(db DB, user *User, limit, page int) ([]FullContent, error
 		}
 		//log.Printf("LIKES: %#v", contetLikes)
 		if len(contetLikes) > 0 {
-			for i, content := range fullContents {
+			for i, content := range contents {
 				for _, contentLike := range contetLikes {
 					log.Printf("%s = %s \n", content.ContentId, contentLike.ContentId)
 					if content.ContentId == contentLike.ContentId {
-						fullContents[i].ILike = true // Alter in the list
-						log.Printf("CONT liked: %#v\n", fullContents[i])
+						contents[i].ILike = true // Alter in the list
+						log.Printf("CONT liked: %#v\n", contents[i])
 					}
 				}
 			}
 		}
 	}
-	//log.Printf("CONTS: %#v", fullContents)
-	return fullContents, nil
+	//log.Printf("CONTS: %#v", contents)
+	return contents, nil
 }
 
 func GetSlug(content *Content) (string, error) {
@@ -274,23 +282,25 @@ func CreateContent(db DB, user *User, url *Url, img *Image, content *Content) (*
 	}
 
 	newContent := &Content{
-		ContentId:   contentId,
-		UrlId:       url.UrlId,
-		CategoryId:  "default", // First category will be "Sem categoria"
-		Title:       content.Title,
-		Slug:        newSlug,
-		Description: content.Description,
-		Host:        content.Host,
-		UserId:      user.UserId,
-		ImageId:     "default", // We will check the if there is an image below
-		LikeCount:   0,
-		Creation:    time.Now(),
-		LastUpdate:  time.Now(),
-		Deleted:     false,
+		ContentId:    contentId,
+		UrlId:        url.UrlId,
+		CategoryId:   "default", // First category will be "Sem categoria"
+		Title:        content.Title,
+		Slug:         newSlug,
+		Description:  content.Description,
+		Host:         content.Host,
+		UserId:       user.UserId,
+		ImageId:      "default", // We will check the if there is an image below
+		ImageMaxSize: "small",   // We will check the if there is an image below
+		LikeCount:    0,
+		Creation:     time.Now(),
+		LastUpdate:   time.Now(),
+		Deleted:      false,
 	}
 
 	if img != nil {
 		newContent.ImageId = img.ImageId
+		newContent.ImageMaxSize = img.MaxSize
 	}
 
 	err = db.Insert(newContent)

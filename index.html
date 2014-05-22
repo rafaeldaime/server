@@ -41,7 +41,7 @@
           <span class="icon-bar"></span>
           <span class="icon-bar"></span>
         </button>
-        <a class="navbar-brand" href="#">TURMA</a>
+        <a class="navbar-brand" ui-sref="home()">TURMA</a>
       </div>
 
 
@@ -54,46 +54,43 @@
 
 
       <ul class="nav navbar-nav">
-        <li><a href="#" ng-click="isCategoriesCollapsed = !isCategoriesCollapsed">CATEGORIAS</a></li>
       </ul>
 
 
 
       <ul class="nav navbar-nav navbar-right">
-        <li ng-hide="!isSearchHidden">
-          <button ng-click="isSearchHidden = false" type="button" class="btn btn-default navbar-btn glyphicon glyphicon-search"></button>
-        </li>
-        <li ng-hide="isSearchHidden" ng-mouseleave="isSearchHidden = true">
-          <div class="navbar-form input-group">
-            <input ng-blur="isSearchHidden = true" type="text" class="form-control">
-            <span class="input-group-addon glyphicon glyphicon-search"></span>
-          </div>
-        </li>
-      </ul>
-
-      <ul ng-hide="me || !isSearchHidden" class="nav navbar-nav navbar-right">
-        <li><img  class="hidden-xs hidden-sm" src="pic/default.png"></li>
-        <li ><a class="navbar-link" href="/login" popover-trigger="mouseenter" popover-placement="bottom" popover="FACEBOOK!">LOGIN</a></li>
-      </ul>
-
-      <ul ng-show="me && isSearchHidden" class="nav navbar-nav navbar-right">
         <li>
-
-          <form ng-hide="isPostHidden" ng-submit="newPost()" class="navbar-form" ng-mouseleave="isPostHidden = true">
+          <form ng-show="showSearch" ng-submit="addAlert('Nao implementado ainda')" class="navbar-form">
             <div class="navbar-form input-group">
-                <span class="input-group-addon btn btn-default glyphicon glyphicon glyphicon-upload readOnly" ng-show="isPosting" disabled="true"></span>
-                <input placeholder="URL para publicar..." ng-model="postUrl" type="text" class="form-control" ng-disabled="isPosting">
-                <span class="input-group-addon btn btn-info glyphicon glyphicon-plus" ng-click="newPost()" ng-disabled="isPosting"></span>
+                <span class="input-group-addon btn btn-default glyphicon glyphicon glyphicon-upload readOnly" ng-show="isSearching" disabled="true"></span>
+              <input type="text" class="form-control" focus-me="showSearch">
             </div>
           </form>
-          <button ng-show="isPostHidden" ng-click="isPostHidden = false" type="button" class="btn btn-info navbar-btn glyphicon glyphicon-plus"></button>
-
+          <button ng-hide="showSearch" ng-click="showSearch = true" type="button" class="btn btn-default navbar-btn glyphicon glyphicon-search"></button>
         </li>
-        <li><img ng-src="{{ me | userpicsrc }}"></li>
-        <li ><a class="navbar-link" href="#" ng-click="logout()">LOGOUT</a></li>
       </ul>
 
-      
+      <ul ng-hide="showSearch" class="nav navbar-nav navbar-right">
+        <li>
+          <form ng-hide="!me || (!showPost && !isPosting)" ng-submit="newPost()" class="navbar-form">
+            <div class="navbar-form input-group">
+                <span class="input-group-addon btn btn-default glyphicon glyphicon glyphicon-upload readOnly" ng-show="isPosting" disabled="true"></span>
+                <input placeholder="URL para publicar..." ng-model="postUrl" type="text" class="form-control" ng-disabled="isPosting" focus-me="showPost">
+            </div>
+          </form>
+          <button ng-show="me && !showPost && !isPosting" ng-click="showPost = true" type="button" class="btn btn-info navbar-btn glyphicon glyphicon-plus"></button>
+        </li>
+        <li><img  class="hidden-xs hidden-sm" ng-src="{{ me | userpicsrc }}"></li>
+        <li ng-show="me"><a class="navbar-link" href="#" ng-click="logout()">LOGOUT</a></li>
+        <li ng-hide="me"><a class="navbar-link" href="/login?method=html" popover-trigger="mouseenter" popover-placement="bottom" popover="FACEBOOK!">LOGIN</a></li>
+      </ul>
+
+      <!--
+
+                <span class="input-group-addon btn btn-info glyphicon glyphicon-plus" ng-click="newPost()" ng-disabled="isPosting"></span>
+
+            <span class="input-group-addon glyphicon glyphicon-search"></span>
+       -->
 
       </div><!--/.nav-collapse -->
     </div>
@@ -103,36 +100,15 @@
 
 
 
+<!-- collapse="isCategoriesCollapsed" -->
 
-
-  <div class="container-fluid categories-container" collapse="isCategoriesCollapsed">
+  <div class="container-fluid categories-container">
     <div class="container">
       <div class="row">
-        <div class="col-md-3">
+        <div class="col-md-3" ng-repeat="categories in categoriesCols">
           <ul class="list-unstyled categories-list">
-            <li ng-repeat="category in categoriesSlice1">
-              <a ng-href="/#/{{ category.categoryslug }}">{{ category.categoryname }}</a>
-            </li>
-          </ul>
-        </div>
-        <div class="col-md-3">
-          <ul class="list-unstyled categories-list">
-            <li ng-repeat="category in categoriesSlice2">
-              <a ng-href="/#/{{ category.categoryslug }}">{{ category.categoryname }}</a>
-            </li>
-          </ul>
-        </div>
-        <div class="col-md-3">
-          <ul class="list-unstyled categories-list">
-            <li ng-repeat="category in categoriesSlice3">
-              <a ng-href="/#/{{ category.categoryslug }}">{{ category.categoryname }}</a>
-            </li>
-          </ul>
-        </div>
-        <div class="col-md-3">
-          <ul class="list-unstyled categories-list">
-            <li ng-repeat="category in categoriesSlice4">
-              <a ng-href="/#/{{ category.categoryslug }}">{{ category.categoryname }}</a>
+            <li ng-repeat="category in categories">
+              <a ui-sref="{{ category.categoryslug }}()">{{ category.categoryname }}</a>
             </li>
           </ul>
         </div>
@@ -148,13 +124,13 @@
   <div class="container main-container ng-cloak" ng-cloak >
 
 
-    <!-- Alert's exhibitions -->
-    <alert ng-repeat="alert in alerts" type="{{alert.type}}" close="closeAlert($index)">{{alert.msg}}</alert>
 
 
 
+    <!-- <div ng-bind="me | json"></div> -->
 
-    <div ui-view></div>
+
+    <div class="view-container" ui-view autoscroll='true'></div>
 
 
 
@@ -186,5 +162,6 @@
   <script src="js/directives.js"></script>
 
 
+  </script>
   </body>
 </html>

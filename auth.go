@@ -43,43 +43,76 @@ type UserAuth struct {
 	err  error
 }
 
+//
+// Return true if user is logged, or false
+//
 func (u *UserAuth) Logged() bool {
-	if u.err != nil || u.user == nil {
+	if u.err != nil {
 		return false
-	} else {
-		return true
 	}
+	return true
 }
 
+//
+// Return the user in this context or an anonymous user and an error
+//
 func (u *UserAuth) GetUser() (*User, error) {
-	if u.err != nil || u.user == nil {
-		return nil, u.err
-	} else {
-		return u.user, nil
-	}
+	return u.user, u.err
 }
 
+//
+// Response returned to AuthMiddleware if the handler aborted, cause it needs an user authenticated
+// It returns 419 if users is sending an invalid Authorization header
+// Or returns 403 saying that this handler requires an Authorization
+//
 func AccessDeniedHandler(r render.Render, req *http.Request, err error) {
 	if req.Header.Get("Authorization") != "" {
 		// Client thiks he is logged, force him to logout
 		r.JSON(419, NewError(ErrorCodeDefault, fmt.Sprintf(
-			"Voce nao esta mais logado no sistema! %s.", err)))
+			"Suas credenciais de autenticacao nao sao validas! %s.", err)))
 		return
 	}
 	// Client didn't send credentials, say him it's required
 	r.JSON(403, NewError(ErrorCodeDefault, fmt.Sprintf(
-		"Voce nao esta logado no sistema! %s.", err)))
+		"Voce precisa estar autenticado pelo sistema! %s.", err)))
 }
 
+//
+// Middleware called every call that requires user Authentication
+// It injects the Auth object in handlers that require it to work
+// Return the user in this context or an anonymous user and an error
+// Should be used .Logged to identify if it's an anonymous user
+// and use .GetUser to get this context user or the anonymous user the error object
+//
 func AuthMiddleware(c martini.Context, db DB, r render.Render, req *http.Request) {
-	header := req.Header.Get("Authorization")
-	if header == "" {
+	anonymous := &User{
+		UserId:     "anonymous",
+		UserName:   "Anonimo",
+		PicId:      "default",
+		FullName:   "Usuario Anonimo",
+		LikeCount:  0,
+		Creation:   time.Now(),
+		LastUpdate: time.Now(),
+		Deleted:    false,
+		Admin:      false,
+	}
+
+	// Try to get the credentials from Authorization header or credentials cookie
+	credentials := req.Header.Get("Authorization")
+	if credentials == "" {
+		cookie, err := req.Cookie("credentials")
+		if err == nil {
+			credentials = cookie.Value
+		}
+	}
+
+	if credentials == "" {
 		err := errors.New("Voce nao apresentou credenciais de autorizacao")
-		userAuth := &UserAuth{nil, err}
+		userAuth := &UserAuth{anonymous, err}
 		c.MapTo(userAuth, (*Auth)(nil))
-		c.Next() // Call the next handler
-		if !c.Written() {
-			// If the nex handler aborted, empty return
+		c.Next()          // Call the next handler
+		if !c.Written() { // Handler aborted
+			// If the nex handler aborted, by an empty return
 			// So he can't go on without user, let's alert user
 			AccessDeniedHandler(r, req, err)
 		}
@@ -88,49 +121,34 @@ func AuthMiddleware(c martini.Context, db DB, r render.Render, req *http.Request
 
 	// Len of our 41 (20:20) char encoded in base64 is 56
 	// (C++) long base64EncodedSize = 4 * (int)Math.Ceiling(originalSizeInBytes / 3.0);
-	if len(header) < 56 {
+	if len(credentials) != 56 {
 		err := errors.New("Credenciais de authorizacao apresentadas sao invalidas.")
-		userAuth := &UserAuth{nil, err}
+		userAuth := &UserAuth{anonymous, err}
 		c.MapTo(userAuth, (*Auth)(nil))
 		c.Next()          // Call the next handler
-		if !c.Written() { // Response the user
+		if !c.Written() { // Handler aborted
 			AccessDeniedHandler(r, req, err)
 		}
 		return
 	}
 
-	auth, err := decodeAuth(header)
+	token, err := decodeAuth(credentials)
 	if err != nil {
-		userAuth := &UserAuth{nil, err}
+		userAuth := &UserAuth{anonymous, err}
 		c.MapTo(userAuth, (*Auth)(nil))
 		c.Next()          // Call the next handler
-		if !c.Written() { // Response the user
+		if !c.Written() { // Handler aborted
 			AccessDeniedHandler(r, req, err)
 		}
 		return
 	}
 
-	i := strings.Index(auth, ":")
-	if i == -1 {
-		err = errors.New("Credenciais de authorizacao estao corrompidas")
-		userAuth := &UserAuth{nil, err}
-		c.MapTo(userAuth, (*Auth)(nil))
-		c.Next()          // Call the next handler
-		if !c.Written() { // Response the user
-			AccessDeniedHandler(r, req, err)
-		}
-		return
-	}
-
-	tokenid := auth[:i]
-	userid := auth[i+1:]
-
-	obj, err := db.Get(Token{}, tokenid)
+	obj, err := db.Get(Token{}, token.TokenId, token.UserId)
 	if err != nil {
-		userAuth := &UserAuth{nil, err}
+		userAuth := &UserAuth{anonymous, err}
 		c.MapTo(userAuth, (*Auth)(nil))
 		c.Next()          // Call the next handler
-		if !c.Written() { // Response the user
+		if !c.Written() { // Handler aborted
 			AccessDeniedHandler(r, req, err)
 		}
 		return
@@ -139,33 +157,23 @@ func AuthMiddleware(c martini.Context, db DB, r render.Render, req *http.Request
 	if obj == nil {
 		// This tokenid was not found
 		err = errors.New("Credenciais fornecidas nao foram encontradas")
-		userAuth := &UserAuth{nil, err}
+		userAuth := &UserAuth{anonymous, err}
 		c.MapTo(userAuth, (*Auth)(nil))
 		c.Next()          // Call the next handler
-		if !c.Written() { // Response the user
+		if !c.Written() { // Handler aborted
 			AccessDeniedHandler(r, req, err)
 		}
 		return
 	}
 
-	token := obj.(*Token)
-	if token.UserId != userid {
-		err = errors.New("Usuario nao identificado pelas credenciais fornecidas")
-		userAuth := &UserAuth{nil, err}
-		c.MapTo(userAuth, (*Auth)(nil))
-		c.Next()          // Call the next handler
-		if !c.Written() { // Response the user
-			AccessDeniedHandler(r, req, err)
-		}
-		return
-	}
+	token = obj.(*Token)
 
-	obj, err = db.Get(User{}, userid)
+	obj, err = db.Get(User{}, token.UserId)
 	if err != nil {
-		userAuth := &UserAuth{nil, err}
+		userAuth := &UserAuth{anonymous, err}
 		c.MapTo(userAuth, (*Auth)(nil))
 		c.Next()          // Call the next handler
-		if !c.Written() { // Response the user
+		if !c.Written() { // Handler aborted
 			AccessDeniedHandler(r, req, err)
 		}
 		return
@@ -177,23 +185,47 @@ func AuthMiddleware(c martini.Context, db DB, r render.Render, req *http.Request
 	c.MapTo(userAuth, (*Auth)(nil))
 }
 
-// Here is our BasicAuth
+//
+// Receives a Token object and returns an encoded Authorization header
+//
 func encodeAuth(token *Token) string {
-	auth := base64.StdEncoding.EncodeToString([]byte(token.TokenId + ":" + token.UserId))
-	return auth
+	authorization := base64.StdEncoding.EncodeToString([]byte(token.TokenId + ":" + token.UserId))
+	return authorization
 }
-func decodeAuth(auth string) (string, error) {
-	decoded, err := base64.StdEncoding.DecodeString(auth)
-	return string(decoded), err
+
+//
+// Receives an encothed Authorization header and returns a Token object
+//
+func decodeAuth(authorization string) (*Token, error) {
+	bytesDecoded, err := base64.StdEncoding.DecodeString(authorization)
+	if err != nil {
+		err = errors.New("Credenciais de authorizacao estao corrompidas")
+		return nil, err
+	}
+
+	authorization = string(bytesDecoded)
+
+	i := strings.Index(authorization, ":")
+	if i == -1 {
+		err = errors.New("Credenciais de authorizacao foram modificadas")
+		return nil, err
+	}
+
+	token := &Token{
+		TokenId: authorization[:i],
+		UserId:  authorization[i+1:],
+	}
+
+	return token, err
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// The state will inform if the response will be json or html
 	// Html is the default request and will do 2 things:
 	// Set the cookie "credentials" and return the visitor to the main page
-	state := r.URL.Query().Get("state")
-	if state == "" { // The default is a direct html request
-		state = "html"
+	state := r.URL.Query().Get("method")
+	if state == "" { // The default is Json method, but it could be html too
+		state = "json"
 	}
 
 	// Set based on the server current url
@@ -266,6 +298,12 @@ func LoginCallbackHandler(db DB, r render.Render, w http.ResponseWriter, req *ht
 	}
 
 	token, err := newToken(db, user)
+	// log.Printf("user: %#v \n", user)
+	// log.Printf("Token: %#v \n", token)
+	if err != nil {
+		renderHtmlOrJson(r, w, req, state, err, "Desculpe, mas ocorreu um erro ao criar seu token de acesso.")
+		return
+	}
 	credentials := encodeAuth(token)
 
 	if state == "json" {
@@ -274,7 +312,7 @@ func LoginCallbackHandler(db DB, r render.Render, w http.ResponseWriter, req *ht
 	}
 	// COOKIES CAN'T HAVE VALUES WITH COMMA OR SPACE !!!
 	cookieCredentials := &http.Cookie{Name: "credentials", Value: credentials, MaxAge: 60 * 60 * 24 * 30 * 12, Path: "/"}
-	cookieMessage := &http.Cookie{Name: "message", Value: "Logou-se!", MaxAge: 60 * 30, Path: "/"}
+	cookieMessage := &http.Cookie{Name: "message", Value: "Bem-Vindo!", MaxAge: 60 * 30, Path: "/"}
 	http.SetCookie(w, cookieCredentials)
 	http.SetCookie(w, cookieMessage)
 	http.Redirect(w, req, "/", 302)
@@ -498,31 +536,30 @@ func getOrCreateUser(db DB, profile *Profile) (*User, error) {
 		return nil, err
 	}
 
-	// !!! REMEMBER TO GET USERS PIC!
-
 	return user, nil
 }
 
 func newToken(db DB, user *User) (*Token, error) {
-	token := new(Token)
 
 	tokenId := uniuri.NewLen(20)
-	t, err := db.Get(Token{}, tokenId)
+	t, err := db.Get(Token{}, tokenId, user.UserId)
 	for err == nil && t != nil {
 		// Shit, we generated an existing token...
 		// just one time in 10^32
 		// Let's play the lottery!
 		tokenId := uniuri.NewLen(20)
-		t, err = db.Get(Token{}, tokenId)
+		t, err = db.Get(Token{}, tokenId, user.UserId)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	token.TokenId = tokenId
-	token.UserId = user.UserId
-	token.Creation = time.Now()
+	token := &Token{
+		TokenId:  tokenId,
+		UserId:   user.UserId,
+		Creation: time.Now(),
+	}
 
 	err = db.Insert(token)
 	if err != nil {

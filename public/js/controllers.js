@@ -5,21 +5,44 @@
 controllers = angular.module('app.controllers', []);
 
 
-controllers.controller('HomeController', function($scope, Restangular) {
-	var getRows = function(array, columns) {
-		var rows = [];
-		var i, j, temparray, chunk = columns;
-		for (i=0,j=array.length; i<j; i+=chunk) {
-			temparray = array.slice(i, i+chunk);
-			rows.push(temparray);
-		}
-		return rows;
+controllers.controller('HomeController', function($scope, $state, Restangular) {
+	var categoryslug = null;
+	if ($state.current.data) {
+		var categoryslug = $state.current.data.categoryslug;
 	};
+	
+	//console.log("Category: "+categoryslug)
 
-	Restangular.all('contents').getList({order: "top"}).then(function (contents) {
-		console.log(contents);
-		$scope.contentrows = getRows(contents, 3);
-	});
+	
+	// This function consumes the contents caught on the server
+	var contentDigest = function (contents) {
+		// Searching for one content with large image
+		var contentfirst = null;
+		var index = 0;
+		_.forEach(contents, function (content) {
+			index += 1;
+			if (!contentfirst && content.imagemaxsize == "large") {
+				contentfirst = content;
+			}
+		})
+		// If we found an content with large image, lets remove it from the list
+		if (contentfirst) {
+			// Removing the caught content from the whole list
+			contents = _.without(contents, contentfirst);
+			$scope.contentfirst = contentfirst;
+		}
+
+		$scope.contentrows = $scope.getRows(contents, 3);
+	}
+
+
+
+	if (categoryslug) { // It's an category state
+		Restangular.one('categories', categoryslug).all('contents').getList({order: "top"}).then(contentDigest);
+	}
+	else { // It's the HOME!
+		Restangular.all('contents').getList({order: "top"}).then(contentDigest);
+	}
 
 	$scope.like = function (content) {
 		console.log("Liking: "+content.contentid)
