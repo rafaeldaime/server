@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -21,41 +22,23 @@ import (
 // it will relace all substrings that match in any of these cases
 // \s{2,} matches 2 or more white spaces (or newlines)
 var (
-	htmlNewline         = regexp.MustCompile(`<br\s*[\/]?>`)
 	htmlTagsAndEntities = regexp.MustCompile(`<(.*?)>|&(.*?);`)
+	validChars          = regexp.MustCompile(`^[^a-zA-Zà-úÀ-Ú0-9 \-.,:;!?]`)
+	beginEndSpaces      = regexp.MustCompile(`^\s+|\s+$`)
 	spacesTogether      = regexp.MustCompile(` {2,}`)
-	newlinesTogether    = regexp.MustCompile(`\n{2,}`)
-	beginEndNewLines    = regexp.MustCompile(`^\s+|\s+$`)
-	validTitle          = regexp.MustCompile(`^[^a-zA-Zà-úÀ-Ú0-9 \-!?]`)
-	validDescription    = regexp.MustCompile(`^[^a-zA-Zà-úÀ-Ú0-9 \-_.,:;!?\n]`)
 )
 
-func StripTitle(title string) string {
-	// Accept accents and - ! ?
-	title = htmlTagsAndEntities.ReplaceAllString(title, "")
-	title = validTitle.ReplaceAllString(title, "")
-	title = beginEndNewLines.ReplaceAllString(title, "")
-	title = spacesTogether.ReplaceAllString(title, " ")
-	title = newlinesTogether.ReplaceAllString(title, "\n")
-	return title
-}
-
-func StripDescription(description string) string {
-	// Accept accents and some special characters, including a new-line
-	log.Printf("Description1: '%v'", description)
-	description = htmlNewline.ReplaceAllString(description, "\n")
-	log.Printf("Description2: '%v'", description)
-	description = htmlTagsAndEntities.ReplaceAllString(description, "")
-	log.Printf("Description3: '%v'", description)
-	description = validDescription.ReplaceAllString(description, "")
-	log.Printf("Description4: '%v'", description)
-	description = beginEndNewLines.ReplaceAllString(description, "")
-	log.Printf("Description5: '%v'", description)
-	description = spacesTogether.ReplaceAllString(description, " ")
-	log.Printf("Description6: '%v'", description)
-	description = newlinesTogether.ReplaceAllString(description, "\n")
-	log.Printf("Description7: '%v'", description)
-	return description
+func StripTitleOrDescription(value string) string {
+	// Accept accents
+	log.Printf("StripTitleOrDescription: '%v'", value)
+	value = htmlTagsAndEntities.ReplaceAllString(value, "")
+	log.Printf("StripTitleOrDescription: '%v'", value)
+	value = validChars.ReplaceAllString(value, "")
+	log.Printf("StripTitleOrDescription: '%v'", value)
+	value = beginEndSpaces.ReplaceAllString(value, "")
+	log.Printf("StripTitleOrDescription: '%v'", value)
+	value = spacesTogether.ReplaceAllString(value, " ")
+	return value
 }
 
 func GetContents(db DB, user *User, categoryslug string, limit, page int) ([]Content, error) {
@@ -127,8 +110,22 @@ func GetSlug(content *Content) (string, error) {
 	return newSlug, nil
 }
 
+// Get the contents of one URL
 func GetContent(fullUrl string) (*Content, string, error) {
-	resp, err := http.Get(fullUrl)
+
+	// My own Cient with my own Transport
+	// Just to abort very slow responses
+	transport := http.Transport{
+		Dial: func(network, addr string) (net.Conn, error) {
+			return net.DialTimeout(network, addr, time.Duration(10*time.Second))
+		},
+	}
+
+	client := http.Client{
+		Transport: &transport,
+	}
+
+	resp, err := client.Get(fullUrl)
 	if err != nil {
 		return nil, "", errors.New(
 			fmt.Sprintf("Desculpe, ocorreu ao tentar recuperar a pagina referente a URL passada. %s.", err))

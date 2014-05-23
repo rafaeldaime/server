@@ -17,36 +17,40 @@
 			<div class="contentfirst-content">
 
 				<header class="content-header">
-				<h2 class="content-title">
-				<a class="content-link" ng-bind="contentfirst.title"  ng-href="/link/{{ contentfirst.urlid }}"></a>
-				</h2>
-				<div class="content-meta">
-				<span class="content-score">
-					<span class="glyphicon glyphicon-thumbs-up"></span>
-					{{ contentfirst.likecount }}
-				</span>
-				<span class="content-meta-item">
-				<a ng-bind="categories.getName(contentfirst)" ui-sref="{{ categories.getSlug(contentfirst) }}()"></a>
-				</span>
-				<span class="content-meta-item">
-				<a class="content-meta-item-link" ng-bind="contentfirst.creation | date : timeFormat">
-				</a>
-				</span>
-				</div>
+					<h2 class="content-title">
+						<a class="content-link" ng-bind="contentfirst.title"  ng-href="/link/{{ contentfirst.urlid }}"></a>
+					</h2>
+					<div class="content-meta">
+						<span class="content-score">
+							<span class="glyphicon glyphicon-thumbs-up"></span>
+							{{ contentfirst.likecount }}
+						</span>
+						<span class="content-meta-item">
+							<a ng-bind="categories.getName(contentfirst)" ui-sref="{{ categories.getSlug(contentfirst) }}()"></a>
+						</span>
+						<span class="content-meta-item content-date">
+							<a class="content-meta-item-link" ng-bind="content.creation | date : timeFormat"></a>
+						</span>
+					</div>
 				</header>
 
 				<p class="content-description" ng-bind="contentfirst.description"></p>
 
-				<div class="content-host">
+				<div class="content-footer">
 					<span ng-show="me && contentfirst.mouseover" class="content-actions">
 						<a ng-hide="contentfirst.ilike" ng-click="like(contentfirst)"  popover-trigger="mouseenter" popover-placement="top" popover="CURTIR!" class="btn btn-info glyphicon glyphicon-thumbs-up">
 						</a>
 						<a ng-show="contentfirst.ilike" ng-click="unlike(contentfirst)"  popover-trigger="mouseenter" popover-placement="top" popover="DESCURTIR!" class="btn btn-default glyphicon glyphicon-thumbs-up">
 						</a>
 						<a ng-show="contentfirst.userid == me.userid" class="btn btn-primary glyphicon glyphicon-edit" ng-click="editPost(contentfirst)"  popover-trigger="mouseenter" popover-placement="top" popover="EDITAR!"></a>
-						<a class="btn btn-danger glyphicon glyphicon-flag"  popover-trigger="mouseenter" popover-placement="top" popover="DENUNCIAR!"></a>
+						<a class="btn btn-danger glyphicon glyphicon-flag btn-flag"  popover-trigger="mouseenter" popover-placement="top" popover="DENUNCIAR!"></a>
 					</span>
-					<span class="content-link" ng-bind="contentfirst.host"></span>
+					<span class="content-comments">.</span>
+				</div>
+
+
+				<div class="content-host-domain">
+					<span class="address" ng-bind="contentfirst.host"></span>
 				</div>
 
 			</div>
@@ -103,7 +107,7 @@
 						<a ng-show="content.userid == me.userid" class="btn btn-primary glyphicon glyphicon-edit" ng-click="editPost(content)"  popover-trigger="mouseenter" popover-placement="top" popover="EDITAR!"></a>
 						<a class="btn btn-danger glyphicon glyphicon-flag btn-flag"  popover-trigger="mouseenter" popover-placement="top" popover="DENUNCIAR!"></a>
 					</span>
-					<span class="content-comments">54 comentarios</span>
+					<span class="content-comments">.</span>
 				</div>
 
 			</div>

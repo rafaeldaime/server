@@ -446,8 +446,8 @@ func updateContent(db DB, auth Auth, params martini.Params, r render.Render, req
 		return
 	}
 
-	content.Title = StripTitle(content.Title)
-	content.Description = StripDescription(content.Description)
+	content.Title = StripTitleOrDescription(content.Title)
+	content.Description = StripTitleOrDescription(content.Description)
 
 	if content.Title == "" || content.Description == "" {
 		r.JSON(http.StatusMethodNotAllowed, NewError(ErrorCodeDefault, fmt.Sprintf(
@@ -574,6 +574,7 @@ func addContent(db DB, auth Auth, r render.Render, req *http.Request) {
 }
 
 func saveUrl(db DB, user *User, fullUrl string) (*Url, error) {
+	log.Println("Starting SaveImage")
 	urlId := uniuri.NewLen(5)
 	u, err := db.Get(Url{}, urlId)
 	for err == nil && u != nil {

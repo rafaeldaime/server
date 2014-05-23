@@ -80,24 +80,14 @@ directives.directive('contenteditable', function() {
             element.bind('blur', function() {
                 $scope.$apply(function() {
           			var value = element.html();
-                    // Replace html newlines to newline caracter
-                    value = value.replace(/<br\s*[\/]?>/gi, "\n");
                     // Remove tags and etities html
                     value = value.replace(/<(.*?)>|&(.*?);/g, "");
-          			if( attrs.title ) {
-                        // Valide Title
-                        value = value.replace(/[^a-zA-Zà-úÀ-Ú0-9 \-!?]/g, "");
-			        }
-          			if( attrs.description ) {
-                        // Valide Description
-                        value = value.replace(/[^a-zA-Zà-úÀ-Ú0-9 \-_.,:;!?\n]/g, "");
-                    }
-                    // Remove spaces and newlines at begin and end of the string
+                    // Valide Title
+                    value = value.replace(/[^a-zA-Zà-úÀ-Ú0-9 \-.,:;!?]/g, "");
+                    // Remove spaces at begin and end of the string
                     value = value.replace(/^\s+|\s+$/g, "");
                     // Replace 2 or more white spaces to just one space
                     value = value.replace(/ {2,}/g, " ");
-                    // Replace 2 or more newline together to just one newline
-                    value = value.replace(/\n{2,}/g, "\n");
 
                     // Value can't be empty, so we don't update them
                     if (value != "") {
@@ -111,10 +101,6 @@ directives.directive('contenteditable', function() {
             // model -> view
             ngModel.$render = function() {
                 var value = ngModel.$viewValue;
-      			if( value && attrs.description ) {
-                    // We should replace newlines to show them
-		            value = value.replace(/\n/g, "<br>");
-		        }
                 element.html(value || '');
             };
 
@@ -125,11 +111,9 @@ directives.directive('contenteditable', function() {
                     elm = event.target;
 
                 if (enter) {
-                    // Title will not have newline
-          			if( attrs.title ) {
-	                    elm.blur();
-	                    event.preventDefault(); 
-			        }                     
+                    // Fields can't have newlines
+                    elm.blur();
+                    event.preventDefault();
                 }
 
                 if (esc) {

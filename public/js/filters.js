@@ -25,33 +25,6 @@ filters.filter('strLimit', function() {
 
 
 
-filters.filter('contenthasimage', function() {
-	return function(content, size) {
-		// DUNNO WHY BUY THIS FILTER IS CALLED SO MANY TIMES !!!
-		// It's called every $digest action, i dunno if it's the better option...
-		if (!content) {
-			return false;
-		}
-		// If we want to know just if there is or there isn't an image in this content
-		if (!size) {
-			if (content.imagemaxsize == '') {
-				return false
-			}
-			else {
-				return true
-			}
-		}
-		// Check if there is large image for this content, and so on
-		if (size == 'large' && content.imagemaxsize == 'large') {
-			return true;
-		} else if (size == 'medium' && (content.imagemaxsize == 'large' || content.imagemaxsize == 'medium')) {
-			return true;
-		} else if (size == 'small' && (content.imagemaxsize == 'large' || content.imagemaxsize == 'medium' || content.imagemaxsize == 'small')) {
-			return true;
-		}
-		return false;
-	};
-});
 
 
 filters.filter('contentimagesrc', function() {

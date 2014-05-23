@@ -174,6 +174,7 @@ ul.categories-list li a:focus {
 
 .content-container .content-image {
     width: 100%;
+    clear: both;
 }
 
 
@@ -190,6 +191,10 @@ ul.categories-list li a:focus {
     border-width: 0px;
     max-width: 100% !important;
     height: auto !important;
+}
+
+.content-container .content-image .invisible-input {
+    display:none;
 }
 
 
@@ -296,4 +301,25 @@ ul.categories-list li a:focus {
 .content-container .content-footer .content-comments {
     color: #B0B0B0;
     font-size: 0.8em;
+}
+
+.content-container .content-image-maxsize {
+    line-height: 0.75em;
+    clear: both;
+}
+.content-container .content-image-maxsize .image-maxsize {
+    color: #B0B0B0;
+    float: right;
+    font-size: 0.75em;
+    margin-left: 8px;
+}
+
+
+.modal-dialog {
+    width: 392px;
+}
+
+.modal-footer {
+    margin: 0;
+    padding: 0;
 }

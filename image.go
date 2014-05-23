@@ -7,6 +7,7 @@ import (
 	"image/png"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -19,7 +20,19 @@ import (
 // Take the site image and save in our server
 func GetImage(db DB, imageUrl string) (*Image, error) {
 
-	res, err := http.Get(imageUrl)
+	// My own Cient with my own Transport
+	// Just to abort very slow responses
+	transport := http.Transport{
+		Dial: func(network, addr string) (net.Conn, error) {
+			return net.DialTimeout(network, addr, time.Duration(10*time.Second))
+		},
+	}
+
+	client := http.Client{
+		Transport: &transport,
+	}
+
+	res, err := client.Get(imageUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -40,6 +53,7 @@ type dimension struct {
 }
 
 func SaveImage(file io.Reader) (*Image, error) {
+	log.Println("Starting SaveImage")
 
 	imageId := uniuri.NewLen(20)
 	i, err := db.Get(Image{}, imageId)
@@ -68,7 +82,7 @@ func SaveImage(file io.Reader) (*Image, error) {
 
 	// We will save 3 resized images
 	sizes := [...]string{"small", "medium", "large"}
-	dimensions := [...]dimension{{233, 127}, {358, 194}, {748, 408}}
+	dimensions := [...]dimension{{261, 142}, {358, 194}, {748, 408}}
 
 	// We will save the Thumbnails just if the original image
 	// dimension is bigger or equals than the thumbnail dimension
@@ -79,11 +93,11 @@ func SaveImage(file io.Reader) (*Image, error) {
 		widthRatio := float32(originalWidht) / float32(newWidth)    // Width ratio
 		heightRatio := float32(originalHeight) / float32(newHeight) // Height ratio
 
-		// log.Printf("Trying to save img size %d, widthRatio: %f, heightRatio: %f\n", size, widthRatio, heightRatio)
+		log.Printf("Trying to save img size %d, widthRatio: %f, heightRatio: %f\n", size, widthRatio, heightRatio)
 
 		// We will resize and crop images small and medium and
 		// just images bigger than large size will be saved with large scale
-		if size == "small" || size == "medium" || (widthRatio >= 1 && heightRatio >= 1) {
+		if size == "small" || (widthRatio >= 1 && heightRatio >= 1) {
 			maxSize = size
 			// Below the values to the image be resized after be cropped
 			// If resized width or height == 0, so the proportion will be conserved

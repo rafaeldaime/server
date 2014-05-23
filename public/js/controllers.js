@@ -90,7 +90,10 @@ var ContentController = controllers.controller('ContentController', function($sc
 				oldValue.description != newValue.description ||
 				oldValue.categoryid != newValue.categoryid) {
 				// We should save it's new value
-				newValue.save();
+				newValue.save().then(function(content) {
+					console.log("Object saved OK");
+					console.log(content);
+				});
 				console.log("New value saved!");
 			}
 		}
@@ -119,6 +122,7 @@ var ContentController = controllers.controller('ContentController', function($sc
 	        console.log("Sucess!");
 	        console.log(content);
 	        $scope.content.imageid = content.imageid;
+	        $scope.content.imagemaxsize = content.imagemaxsize;
 	      }).error(function(data, status, headers, config) {
 	        // file is uploaded successfully
 	        console.log("ERRO!");

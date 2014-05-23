@@ -191,9 +191,8 @@ app.controller('AppController', function($scope, $timeout, $cookies, $modal, $lo
 
 	$scope.editPost = function (content) {
 		var modalInstance = $modal.open({
-			templateUrl: 'view/newpost.html',
+			templateUrl: 'view/postedit.html',
 			controller: 'ContentController',
-			size: 'lg',
 			resolve: {
 				categories: function () {
 					return $scope.categories;

@@ -1,0 +1,79 @@
+<div class="container-fluid ng-cloak modal-container" ng-cloak>
+  <!-- User Content -->
+  <section class="content-list">
+    <div class="row content-row">
+      <header class="category-header col-md-12">
+        <select class="category-header-categories" ng-model="content.categoryid">
+          <option ng-repeat="category in categories" value="{{ category.categoryid }}"  ng-selected="category.categoryid == content.categoryid">
+            {{ category.categoryname }}
+          </option>
+        </select >
+      </header>
+
+
+
+      <article class="content-container col-md-12">
+
+        <div class="content-image-maxsize">
+          <span class="image-maxsize" ng-if="content.imageid == 'default'">Adicione uma imagem para que seu conteudo possa ter mais destaque</span>
+          <span class="image-maxsize" ng-if="content.imageid != 'default' && content.imagemaxsize == 'small'">Imagem pequena, nao podera ser usada como destaque</span>
+          <span class="image-maxsize" ng-if="content.imagemaxsize == 'medium'">Imagem de tamanho medio, nao podera ser usada como destaque</span>
+          <span class="image-maxsize" ng-if="content.imagemaxsize == 'large'">Imagem de tamanho maximo e podera aparecer como destaque</span>
+        </div>
+
+        <div class="content-image" popover-trigger="mouseenter" popover-placement="bottom" popover="Envie uma imagem 748x408, ou maior, para o conteudo poder aparecer com destaque maximo">
+          <a class="content-link" href="#" >
+            <img contentimageeditable="true" ng-model="inputelement" ng-src="{{ content | contentimagesrc:'medium' }}" />
+          </a>
+          <input class="invisible-input" type="file" ng-file-select="onFileSelect($files)" inputfile="true" ng-model="inputelement"/>
+        </div>
+
+        <div class="content-host-domain">
+          <span class="address" ng-bind="content.host"></span>
+        </div>
+
+        <div class="content-content">
+
+          <header class="content-header">
+            <h2 class="content-title">
+              <span class="content-link" contenteditable="true" ng-model="content.title"></span>
+            </h2>
+            <div class="content-meta">
+              <span class="content-score">
+                <span class="glyphicon glyphicon-thumbs-up"></span>
+                {{ content.likecount }}
+              </span>
+              <span class="content-meta-item" ng-bind="categories.getName(content)">
+              </span>
+              <span class="content-meta-item content-date">
+                <a class="content-meta-item-link" ng-bind="content.creation | date : timeFormat"></a>
+              </span>
+            </div>
+          </header>
+          
+          <p class="content-description" contenteditable="true" ng-model="content.description" ng-model="content.title"></p>
+
+          <div class="content-host-domain">
+            <span class="address" ng-bind="content.host"></span>
+          </div>
+
+          <div class="content-footer">
+            <span ng-show="me && content.mouseover" class="content-actions">
+              <a ng-hide="content.ilike" ng-click="like(content)"  popover-trigger="mouseenter" popover-placement="top" popover="CURTIR!" class="btn btn-info glyphicon glyphicon-thumbs-up">
+              </a>
+              <a ng-show="content.ilike" ng-click="unlike(content)"  popover-trigger="mouseenter" popover-placement="top" popover="DESCURTIR!" class="btn btn-default glyphicon glyphicon-thumbs-up">
+              </a>
+            <span class="content-comments">.</span>
+          </div>
+
+        </div>
+
+      </article>
+    </div>
+  </section>
+  <!-- End of User Content -->
+
+  <div class="modal-footer">
+      <button class="btn btn-primary" ng-click="ok()">OK</button>
+  </div>
+</div>
