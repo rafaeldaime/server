@@ -5,7 +5,7 @@
 <!-- First content -->
 <section ng-if="contentfirst" class="first-content row content-row">
 	<article class="content-container" ng-init="contentfirst.mouseover=false" ng-mouseenter="contentfirst.mouseover=true" ng-mouseleave="contentfirst.mouseover=false">
-		<div class="col-md-8">
+		<div class="col-sm-8">
 			<div class="content-image content-image-large">
 				<a class="content-link" ng-href="/link/{{ contentfirst.urlid }}" >
 					<img ng-src="{{ contentfirst | contentimagesrc:'large' }}" />
@@ -13,7 +13,7 @@
 			</div>
 		</div>
 
-		<div class="col-md-4">
+		<div class="col-sm-4">
 			<div class="contentfirst-content">
 
 				<header class="content-header">
@@ -29,7 +29,7 @@
 							<a ng-bind="categories.getName(contentfirst)" ui-sref="{{ categories.getSlug(contentfirst) }}()"></a>
 						</span>
 						<span class="content-meta-item content-date">
-							<a class="content-meta-item-link" ng-bind="content.creation | date : timeFormat"></a>
+							<a class="content-meta-item-link" ng-bind="contentfirst.creation | date : timeFormat"></a>
 						</span>
 					</div>
 				</header>
@@ -63,8 +63,11 @@
 <!-- Full Contents list -->
 <section class="contents-list">
 	<div class="row content-row" ng-repeat="contentrow in contentrows">
-		<article class="content-container col-md-4" ng-repeat="content in contentrow" ng-init="content.mouseover=false" ng-mouseenter="content.mouseover=true" ng-mouseleave="content.mouseover=false">
+		<article class="content-container col-sm-4" ng-repeat="content in contentrow" ng-init="content.mouseover=false" ng-mouseenter="content.mouseover=true" ng-mouseleave="content.mouseover=false">
 
+			<div class="content-host-domain">
+				<span class="address" ng-bind="content.host"></span>
+			</div>
 
 			<div class="content-image">
 				<a class="content-link" ng-href="/link/{{ content.urlid }}" >
@@ -72,9 +75,6 @@
 				</a>
 			</div>
 
-			<div class="content-host-domain">
-				<span class="address" ng-bind="content.host"></span>
-			</div>
 
 			<div class="content-content">
 

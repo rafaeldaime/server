@@ -31,6 +31,12 @@ body {
 /* Angular ui-bootstrap, to don't use empty href 
 .nav, .pagination, .carousel, .panel-title a { cursor: pointer; }*/
 
+a {
+    color: #606060;
+}
+a:hover {
+    color: #404040;
+}
 
 [contentEditable] {
     cursor: pointer;
@@ -150,7 +156,9 @@ ul.categories-list li a:focus {
 
 
 
-
+.container {
+    max-width: 970px;
+}
 
 
 
@@ -163,12 +171,16 @@ ul.categories-list li a:focus {
 }
 
 .contents-list .content-row {
-    border-bottom: 1px solid #DFDFDF;
+    /*border-bottom: 1px solid #DFDFDF;*/
 }
 
 
 .content-row .content-container {
-    margin-bottom: 24px;
+    margin-bottom: 10px;
+}
+
+.content-container:hover {
+    background-color: #F9F9F9;
 }
 
 
@@ -258,7 +270,7 @@ ul.categories-list li a:focus {
 }
 
 .content-container .content-meta-item-link {
-    color: #606060;
+    color: #AAAAAA;
     display: inline;
     text-decoration: none;
 }
