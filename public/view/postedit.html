@@ -15,13 +15,13 @@
       <article class="content-container col-md-12">
 
         <div class="content-image-maxsize">
-          <span class="image-maxsize" ng-if="content.imageid == 'default'">Adicione uma imagem para que seu conteudo possa ter mais destaque</span>
+          <span class="image-maxsize" ng-if="content.imageid == 'default'">Adicione uma imagem para seu conteudo poder ter mais destaque</span>
           <span class="image-maxsize" ng-if="content.imageid != 'default' && content.imagemaxsize == 'small'">Imagem pequena, nao podera ser usada como destaque</span>
-          <span class="image-maxsize" ng-if="content.imagemaxsize == 'medium'">Imagem de tamanho medio, nao podera ser usada como destaque</span>
-          <span class="image-maxsize" ng-if="content.imagemaxsize == 'large'">Imagem de tamanho maximo e podera aparecer como destaque</span>
+          <span class="image-maxsize" ng-if="content.imagemaxsize == 'medium'">Imagem de tamanho medio, nao podera ser usada com destaque maximo</span>
+          <span class="image-maxsize" ng-if="content.imagemaxsize == 'large'">Imagem grande, podera aparecer como destaque</span>
         </div>
 
-        <div class="content-image" popover-trigger="mouseenter" popover-placement="bottom" popover="Envie uma imagem 748x408, ou maior, para o conteudo poder aparecer com destaque maximo">
+        <div class="content-image" popover-trigger="mouseenter" popover-placement="bottom" popover="Envie uma imagem 748x408 ou maior, para o conteudo poder aparecer com destaque maximo">
           <a class="content-link" href="#" >
             <img contentimageeditable="true" ng-model="inputelement" ng-src="{{ content | contentimagesrc:'medium' }}" />
           </a>
@@ -51,20 +51,7 @@
             </div>
           </header>
           
-          <p class="content-description" contenteditable="true" ng-model="content.description" ng-model="content.title"></p>
-
-          <div class="content-host-domain">
-            <span class="address" ng-bind="content.host"></span>
-          </div>
-
-          <div class="content-footer">
-            <span ng-show="me && content.mouseover" class="content-actions">
-              <a ng-hide="content.ilike" ng-click="like(content)"  popover-trigger="mouseenter" popover-placement="top" popover="CURTIR!" class="btn btn-info glyphicon glyphicon-thumbs-up">
-              </a>
-              <a ng-show="content.ilike" ng-click="unlike(content)"  popover-trigger="mouseenter" popover-placement="top" popover="DESCURTIR!" class="btn btn-default glyphicon glyphicon-thumbs-up">
-              </a>
-            <span class="content-comments">.</span>
-          </div>
+          <p class="content-description" contenteditable="true" ng-model="content.description"></p>
 
         </div>
 

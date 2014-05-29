@@ -84,6 +84,7 @@ type Content struct {
 	ImageId      string    `db:"imageid" json:"imageid"`           // *FK max: 20
 	ImageMaxSize string    `db:"imagemaxsize" json:"imagemaxsize"` // *NN ENUM('small', 'medium', 'large')
 	LikeCount    int       `db:"likecount" json:"likecount"`       // default: 0
+	CommentCount int       `db:"commentcount" json:"commentcount"` // default: 0
 	Ranking      int       `db:"ranking" json:"ranking"`           // default: 0
 	Creation     time.Time `db:"creation" json:"creation"`         // *NN
 	LastUpdate   time.Time `db:"lastupdate" json:"lastupdate"`     // *NN
