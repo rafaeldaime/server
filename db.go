@@ -25,7 +25,7 @@ type DB interface {
 var db DB
 
 const (
-	dbname = "bancodedados"
+	dbname = "db"
 	dbuser = "app"
 	dbpass = "SecretPassword!"
 )
